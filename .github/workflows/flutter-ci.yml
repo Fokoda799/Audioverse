@@ -1,0 +1,32 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
+
+      - name: Get dependencies
+        working-directory: apps/mobile/audioverse_app
+        run: flutter pub get
+
+      - name: Analyze code
+        working-directory: apps/mobile/audioverse_app
+        run: flutter analyze
+
+      # - name: Run tests
+      #   working-directory: apps/mobile/audioverse_app
+      #   run: flutter test
