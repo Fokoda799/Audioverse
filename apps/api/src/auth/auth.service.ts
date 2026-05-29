@@ -57,6 +57,24 @@ export class AuthService {
     return { user, ...tokens };
   }
 
+  async me(userId: any) {
+    const user = await this.prisma.users.findFirst({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        avatarUrl: true,
+      },
+    })
+
+    if (!user) throw new NotFoundException('User not found');
+
+    return user;
+  }
+
   // ── Logout ────────────────────────────────────────────────────────────
   async logout(userId: string) {
     // Delete ALL refresh tokens for this user — logs out every device at once.
