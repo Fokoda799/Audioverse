@@ -36,9 +36,10 @@ export class AuthService {
     });
     if (exists) throw new ConflictException('Email already in use');
 
-    const hashed = await bcrypt.hash(dto.password, 10);
+    const { password, ...userData } = dto;
+    const hashed = await bcrypt.hash(password, 10);
     const user = await this.prisma.users.create({
-      data: { ...dto, passwordHash: hashed },
+      data: { ...userData, passwordHash: hashed },
     });
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
