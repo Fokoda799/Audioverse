@@ -17,18 +17,24 @@ enum UserRole {
   ADMIN
 }
 
+enum ContentType {
+  NOVEL
+  STORY
+  PODCAST
+}
+
 model Users {
   id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String
   name         String
-  avatarUrl    String?
   role         UserRole @default(USER)
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   refreshTokens RefreshToken[]
+  userProfile UserProfile?
 }
 
 
@@ -39,5 +45,113 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   userId    String
-  user      Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+
+model UserProfile {
+  id          String  @id @default(uuid())
+  displayName String? // ← optional — user hasn't filled it in yet on register
+  avatarUrl   String?
+  bio         String? // ← add this, you'll need it
+  preferences Json    @default("{}")
+
+  userId String @unique
+  user   Users  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  listening   ListeningHistory[]
+  favorite    Favorite []
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+model Category {
+  id        String @id @default(uuid())
+  name      String
+  slug      String @unique
+  iconName  String?
+  colorHex  String?
+  sortOrder Int
+
+  audioContent AudioContent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Author {
+  id        String @id @default(uuid())
+  name      String
+  bio       String
+  avatarUrl String
+
+  audioContent AudioContent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model AudioContent {
+  id          String @id @default(uuid())
+  title       String
+  slug        String
+  description String
+  coverUrl    String
+  audioUrl    String
+  durationSec Int
+  contentType ContentType @default(NOVEL)
+  language    String?
+  isPublished Boolean @default(false)
+  playCount   Int
+
+  authorId    String
+  categoryId  String
+
+  author      Author? @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  listening   ListeningHistory[]
+  favorite    Favorite []
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model ListeningHistory {
+  id              String @id @default(uuid())
+  positionSec     Int
+  progressPercent Decimal
+  completed       Boolean @default(false)
+  lastPlayedAt    DateTime @default(now())
+
+  userId          String
+  contentId       String
+
+  user            UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+content           AudioContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentId])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Favorite {
+  id              String @id @default(uuid())
+  userId          String
+  contentId       String
+
+  user            UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content           AudioContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentId])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

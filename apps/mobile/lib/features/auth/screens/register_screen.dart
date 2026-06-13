@@ -1,4 +1,6 @@
+import 'package:Audioverse/features/auth/auth_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:Audioverse/core/theme/theme.dart';
 import 'package:Audioverse/core/utils/validators.dart';
 import 'package:Audioverse/core/widgets/widgets.dart';
@@ -121,7 +123,11 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
             _emailController.text.trim(),
             _passwordController.text,
           ) ??
-          Future.delayed(const Duration(seconds: 2)));
+          context.read<AuthProvider>().register(
+            name: _nameController.text.trim(),
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          ));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

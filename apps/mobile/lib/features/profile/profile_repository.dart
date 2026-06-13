@@ -1,0 +1,19 @@
+﻿import 'profile_models.dart';
+
+// Profile Repository â€” abstract contract
+//
+// Defines WHAT the profile feature can do.
+// The implementation (profile_repository_impl.dart) decides HOW.
+//
+// This separation means you can swap implementations freely:
+//   - Real API in production
+//   - Mock in tests
+//   - Local cache during offline mode
+
+abstract class ProfileRepository {
+  // TODO: add your method signatures here
+  // Example:
+  Future<Profile>  getProfile();
+  // Future<Profile>  update(String id, Map<String, dynamic> data);
+  // Future<void>     delete(String id);
+}

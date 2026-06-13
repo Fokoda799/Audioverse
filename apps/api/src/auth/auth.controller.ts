@@ -41,14 +41,15 @@ export class AuthController {
     return this.authService.logout(req.user.id);
   }
 
-  @SkipThrottle()
-  @UseGuards(JwtRefreshGuard)
+  
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtRefreshGuard)
+  @SkipThrottle()
   refresh(@Request() req: any) {
     return this.authService.refreshToken(
       req.user.sub,
-      req.user.email,
+      req.user.refreshToken,
     );
   }
 }

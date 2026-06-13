@@ -4,6 +4,7 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,6 +17,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
   ) {}
+  
 
   // ── Validate user (used by LocalStrategy) ──────────────────────────
   async validateUser(email: string, password: string) {
@@ -39,23 +41,29 @@ export class AuthService {
     const { password, ...userData } = dto;
     const hashed = await bcrypt.hash(password, 10);
     const user = await this.prisma.users.create({
-      data: { ...userData, passwordHash: hashed },
+      data: { ...userData, passwordHash: hashed, userProfile: { create: {} } },
     });
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
-    await this.saveRefreshToken(user.id, tokens.refreshToken);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);  
 
     return {
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
       ...tokens,
+      expires_in: 7,
     };
-  }
+  };
 
   // ── Login ─────────────────────────────────────────────────────────────
   async login(user: any) {
     const tokens = await this.generateTokens(user.id, user.email, user.role);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
-    return { user, ...tokens };
+    return { user, ...tokens, expires_in: 15 };
   }
 
   async me(userId: any) {
@@ -67,14 +75,13 @@ export class AuthService {
         email: true,
         role: true,
         createdAt: true,
-        avatarUrl: true,
       },
-    })
+    });
 
     if (!user) throw new NotFoundException('User not found');
 
     return user;
-  }
+  };
 
   // ── Logout ────────────────────────────────────────────────────────────
   async logout(userId: string) {
@@ -100,6 +107,7 @@ export class AuthService {
       throw new ForbiddenException('Access denied — please log in again');
     }
 
+
     // Step 2: Find which stored token matches the incoming one.
     // We loop because bcrypt.compare must be used (we can't query by hash directly).
     let matchedToken = null;
@@ -115,26 +123,34 @@ export class AuthService {
       // The token doesn't match anything in DB — likely stolen or already rotated.
       // Nuke ALL tokens for this user as a security measure (force full re-login).
       await this.prisma.refreshToken.deleteMany({ where: { userId } });
-      throw new ForbiddenException('Invalid refresh token — please log in again');
+      throw new ForbiddenException(
+        'Invalid refresh token — please log in again',
+      );
     }
 
     // Step 3: Check expiry stored in DB (second layer beyond JWT expiry)
     if (matchedToken.expiresAt < new Date()) {
-      await this.prisma.refreshToken.delete({ where: { id: matchedToken.id } });
-      throw new ForbiddenException('Refresh token expired — please log in again');
+      await this.prisma.refreshToken.delete({
+        where: { id: matchedToken.id },
+      });
+      throw new ForbiddenException(
+        'Refresh token expired — please log in again',
+      );
     }
 
     // Step 4: ROTATION — delete the old token record, issue a fresh pair.
     // The old token is now permanently dead, even if someone still has it.
     await this.prisma.refreshToken.delete({ where: { id: matchedToken.id } });
 
-    const user = await this.prisma.users.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found')
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+    });
+    if (!user) throw new NotFoundException('User not found');
     const tokens = await this.generateTokens(user.id, user.email, user.role);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
 
     return tokens;
-  }
+  };
 
   // ── Private: Generate Access + Refresh tokens ─────────────────────────
   private async generateTokens(userId: string, email: string, role: string) {
@@ -147,7 +163,7 @@ export class AuthService {
       }),
       this.jwtService.signAsync(payload, {
         secret: process.env.JWT_REFRESH_SECRET,
-        expiresIn: '7d',
+        expiresIn: '30d',
       }),
     ]);
 
@@ -160,11 +176,11 @@ export class AuthService {
 
     // expiresAt mirrors the JWT expiry — keeps both in sync
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
+    expiresAt.setDate(expiresAt.getDate() + 30); // 7 days from now
 
     await this.prisma.refreshToken.create({
       data: {
-        token: hashed,   // never store the raw token
+        token: hashed, // never store the raw token
         expiresAt,
         userId,
       },

@@ -1,18 +1,22 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'package:Audioverse/core/theme/theme.dart';
 import 'package:Audioverse/core/utils/validators.dart';
 import 'package:Audioverse/core/widgets/widgets.dart';
+import 'package:Audioverse/features/auth/auth_provider.dart';
+
 import 'package:Audioverse/features/auth/widgets/widgets.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
-    this.onLogin,
     this.onForgotPassword,
     this.onCreateAccount,
+    // onLogin is REMOVED — the screen calls AuthProvider directly.
+    // Navigation after login is handled by the router's redirect.
   });
 
-  final Future<void> Function(String email, String password)? onLogin;
   final VoidCallback? onForgotPassword;
   final VoidCallback? onCreateAccount;
 
@@ -20,19 +24,20 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
+  final _formKey           = GlobalKey<FormState>();
+  final _emailController   = TextEditingController();
   final _passwordController = TextEditingController();
-  final _emailFocus = FocusNode();
-  final _passwordFocus = FocusNode();
+  final _emailFocus        = FocusNode();
+  final _passwordFocus     = FocusNode();
 
-  bool _isLoading = false;
   bool _formEverSubmitted = false;
+  bool _emailValid        = false;
+  bool _passwordValid     = false;
 
-  bool _emailValid = false;
-  bool _passwordValid = false;
-  bool get _canSubmit => _emailValid && _passwordValid && !_isLoading;
+  // No _isLoading here — we read it from AuthProvider
+  // to avoid duplicated state
 
   late AnimationController _entranceController;
   late List<Animation<Offset>> _slideAnims;
@@ -41,6 +46,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    _setupAnimations();
+    _emailController.addListener(_onFieldChanged);
+    _passwordController.addListener(_onFieldChanged);
+  }
+
+  void _setupAnimations() {
     _entranceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -53,33 +64,28 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       const Interval(0.55, 1.0),
     ];
 
-    _slideAnims = intervals.map((interval) {
-      return Tween<Offset>(begin: const Offset(0, 0.18), end: Offset.zero).animate(
-        CurvedAnimation(
+    _slideAnims = intervals.map((i) =>
+        Tween<Offset>(begin: const Offset(0, 0.18), end: Offset.zero)
+            .animate(CurvedAnimation(
           parent: _entranceController,
-          curve: Interval(interval.begin, interval.end, curve: Curves.easeOut),
-        ),
-      );
-    }).toList();
+          curve: Interval(i.begin, i.end, curve: Curves.easeOut),
+        )),
+    ).toList();
 
-    _fadeAnims = intervals.map((interval) {
-      return Tween<double>(begin: 0, end: 1).animate(
-        CurvedAnimation(
+    _fadeAnims = intervals.map((i) =>
+        Tween<double>(begin: 0, end: 1)
+            .animate(CurvedAnimation(
           parent: _entranceController,
-          curve: Interval(interval.begin, interval.end, curve: Curves.easeOut),
-        ),
-      );
-    }).toList();
+          curve: Interval(i.begin, i.end, curve: Curves.easeOut),
+        )),
+    ).toList();
 
     _entranceController.forward();
-
-    _emailController.addListener(_onFieldChanged);
-    _passwordController.addListener(_onFieldChanged);
   }
 
   void _onFieldChanged() {
     setState(() {
-      _emailValid = AppValidators.email(_emailController.text) == null;
+      _emailValid    = AppValidators.email(_emailController.text) == null;
       _passwordValid = AppValidators.password(_passwordController.text) == null;
     });
     if (_formEverSubmitted) _formKey.currentState?.validate();
@@ -99,16 +105,16 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     setState(() => _formEverSubmitted = true);
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    setState(() => _isLoading = true);
-    try {
-      await (widget.onLogin?.call(
-        _emailController.text.trim(),
-        _passwordController.text,
-      ) ??
-          Future.delayed(const Duration(seconds: 2)));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    // context.read() — we want to call a method, not subscribe to rebuilds.
+    // The provider calls notifyListeners() internally, which triggers
+    // rebuilds in build() where we use context.watch().
+    await context.read<AuthProvider>().login(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+
+    // No navigation here — the router's redirect watches isLoggedIn
+    // and automatically sends the user to /home when login succeeds.
   }
 
   @override
@@ -116,8 +122,16 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
+    // watch() — subscribes to AuthProvider rebuilds.
+    // Every notifyListeners() call re-runs this build method.
+    final auth = context.watch<AuthProvider>();
+
+    // Derived from provider state — no local _isLoading needed
+    final canSubmit = _emailValid && _passwordValid && !auth.isLoading;
+
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor:
+      isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: Stack(
         children: [
           buildBackground(isDark),
@@ -130,7 +144,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo - Hidden when keyboard is visible to prevent overflow
                       if (!isKeyboardVisible) ...[
                         AnimatedSection(
                           slide: _slideAnims[0],
@@ -140,12 +153,21 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         const SizedBox(height: AppSpacing.lg),
                       ],
 
-                      // Title + subtitle
+                      // AnimatedSection(
+                      //   slide: _slideAnims[1],
+                      //   fade: _fadeAnims[1],
+                      //   child: _buildHeadline(isDark),
+                      // ),
+
+                      const SizedBox(height: AppSpacing.lg),
+
                       AnimatedSection(
-                        slide: _slideAnims[1],
-                        fade: _fadeAnims[1],
-                        child: _buildFormCard(isDark, isKeyboardVisible),
+                        slide: _slideAnims[2],
+                        fade: _fadeAnims[2],
+                        child: _buildFormCard(isDark, isKeyboardVisible, auth, canSubmit),
                       ),
+
+                      const SizedBox(height: AppSpacing.lg),
 
                       AnimatedSection(
                         slide: _slideAnims[3],
@@ -163,68 +185,39 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  // ── Headline ─────────────────────────────────
-
   Widget _buildHeadline(bool isDark) {
     return Column(
       children: [
-        Text(
-          'Welcome back',
-          style: AppTextStyles.displayLarge(
-            isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-          ),
-        ),
+        Text('Welcome back',
+            style: AppTextStyles.displayLarge(
+              isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            )),
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Glad to see you again',
-          style: AppTextStyles.bodyMedium(
-            isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-          ),
-        ),
+        Text('Glad to see you again',
+            style: AppTextStyles.bodyMedium(
+              isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            )),
       ],
     );
   }
 
-  Widget _buildFooter(bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          "Don't have an account? ",
-          style: AppTextStyles.bodyMedium(
-            isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-          ),
-        ),
-        GestureDetector(
-          onTap: widget.onCreateAccount,
-          child: Text(
-            'Create account',
-            style: AppTextStyles.bodyMedium(AppColors.primary).copyWith(
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.underline,
-              decorationColor: AppColors.primary,
-            ),
-          ),
-        ),
-        const SizedBox(width: 4),
-        const Icon(
-          Icons.arrow_forward_rounded,
-          size: 14,
-          color: AppColors.primary,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFormCard(bool isDark, bool isKeyboardVisible) {
+  Widget _buildFormCard(
+      bool isDark,
+      bool isKeyboardVisible,
+      AuthProvider auth,  // passed from build() — no extra watch() needed
+      bool canSubmit,
+      ) {
     return AppCard(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Form(
         key: _formKey,
-        autovalidateMode: _formEverSubmitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+        autovalidateMode: _formEverSubmitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+
             AppTextField(
               controller: _emailController,
               focusNode: _emailFocus,
@@ -234,9 +227,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               autofillHints: const [AutofillHints.email],
               prefixIcon: const Icon(Icons.mail_outline_rounded),
               validator: AppValidators.email,
-              onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_passwordFocus),
+              onFieldSubmitted: (_) =>
+                  FocusScope.of(context).requestFocus(_passwordFocus),
             ),
+
             const SizedBox(height: AppSpacing.md),
+
             AppTextField(
               controller: _passwordController,
               focusNode: _passwordFocus,
@@ -248,45 +244,47 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               validator: AppValidators.password,
               onFieldSubmitted: (_) => _handleLogin(),
             ),
+
             const SizedBox(height: AppSpacing.sm),
+
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: widget.onForgotPassword,
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(
-                  'Forgot password?',
-                  style: AppTextStyles.bodyMedium(AppColors.primary),
-                ),
+                child: Text('Forgot password?',
+                    style: AppTextStyles.bodyMedium(AppColors.primary)),
               ),
             ),
+
             const SizedBox(height: AppSpacing.md),
+
+            // ── Error message from provider ─────────────────
+            // Only shows when auth.errorMessage is non-null
+            if (auth.errorMessage != null) ...[
+              _ErrorBanner(message: auth.errorMessage!),
+              const SizedBox(height: AppSpacing.md),
+            ],
+
             AppButton(
               label: 'Log in',
-              isLoading: _isLoading,
-              isDisabled: !_canSubmit,
-              onPressed: _canSubmit ? _handleLogin : null,
-              trailingIcon: _isLoading ? null : const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+              isLoading: auth.isLoading,   // from provider, not local state
+              isDisabled: !canSubmit,
+              onPressed: canSubmit ? _handleLogin : null,
+              trailingIcon: auth.isLoading
+                  ? null
+                  : const Icon(Icons.arrow_forward_rounded,
+                  color: Colors.white, size: 18),
             ),
+
             if (!isKeyboardVisible) ...[
               const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  const Expanded(child: Divider()),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                    child: Text(
-                      'or',
-                      style: AppTextStyles.bodyMedium(isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                    ),
-                  ),
-                  const Expanded(child: Divider()),
-                ],
-              ),
+              const _OrDivider(),
               const SizedBox(height: AppSpacing.md),
               _buildSocialButtons(isDark),
             ],
@@ -297,50 +295,145 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildSocialButtons(bool isDark) {
-    final buttonColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-
-    Widget socialBtn(Widget icon, String tooltip, VoidCallback onTap) {
-      return Tooltip(
-        message: tooltip,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: buttonColor,
-              border: Border.all(color: borderColor),
-              boxShadow: isDark ? [] : AppShadows.cardLight,
-            ),
-            child: Center(child: icon),
-          ),
-        ),
-      );
-    }
-
+    // Your existing social buttons — unchanged
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        socialBtn(
-          Image.network(
+        _SocialButton(
+          tooltip: 'Sign in with Google',
+          icon: Image.network(
             'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png',
-            width: 24,
-            height: 24,
+            width: 24, height: 24,
+            errorBuilder: (_, __, ___) => const Icon(
+                Icons.g_mobiledata_rounded, size: 30, color: AppColors.primary),
           ),
-          'Sign in with Google',
-          () {},
+          isDark: isDark,
+          onTap: () { /* placeholder */ },
         ),
         const SizedBox(width: AppSpacing.lg),
-        socialBtn(
-          Icon(Icons.apple, color: isDark ? Colors.white : Colors.black, size: 34),
-          'Sign in with Apple',
-          () {},
+        _SocialButton(
+          tooltip: 'Sign in with Apple',
+          icon: Icon(Icons.apple,
+              color: isDark ? Colors.white : Colors.black, size: 34),
+          isDark: isDark,
+          onTap: () { /* placeholder */ },
         ),
       ],
+    );
+  }
+
+  Widget _buildFooter(bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text("Don't have an account? ",
+            style: AppTextStyles.bodyMedium(
+              isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            )),
+        GestureDetector(
+          onTap: widget.onCreateAccount,
+          child: Text('Create account',
+              style: AppTextStyles.bodyMedium(AppColors.primary).copyWith(
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.underline,
+                decorationColor: AppColors.primary,
+              )),
+        ),
+        const SizedBox(width: 2),
+        const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Small private widgets — kept here since they're login-specific
+// ─────────────────────────────────────────────────────────────
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              color: AppColors.error, size: 16),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(message,
+                style: AppTextStyles.bodyMedium(AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      children: [
+        const Expanded(child: Divider()),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: Text('or',
+              style: AppTextStyles.bodyMedium(
+                isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+              )),
+        ),
+        const Expanded(child: Divider()),
+      ],
+    );
+  }
+}
+
+class _SocialButton extends StatelessWidget {
+  const _SocialButton({
+    required this.icon,
+    required this.tooltip,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final Widget icon;
+  final String tooltip;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 56, height: 56,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            ),
+            boxShadow: isDark ? [] : AppShadows.cardLight,
+          ),
+          child: Center(child: icon),
+        ),
+      ),
     );
   }
 }
