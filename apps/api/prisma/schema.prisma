@@ -21,6 +21,8 @@ enum ContentType {
   NOVEL
   STORY
   PODCAST
+  EDUCATIONAL
+  MOTIVATION
 }
 
 model Users {
