@@ -70,12 +70,12 @@ model UserProfile {
 
 
 model Category {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   name      String
-  slug      String @unique
+  slug      String  @unique
   iconName  String?
   colorHex  String?
-  sortOrder Int
+  sortOrder Int     @unique
 
   audioContent AudioContent[]
 
@@ -88,7 +88,7 @@ model Author {
   id        String @id @default(uuid())
   name      String
   bio       String
-  avatarUrl String
+  avatarUrl String?
 
   audioContent AudioContent[]
 
@@ -100,7 +100,7 @@ model Author {
 model AudioContent {
   id          String @id @default(uuid())
   title       String
-  slug        String
+  slug        String @unique
   description String
   coverUrl    String
   audioUrl    String
@@ -119,8 +119,9 @@ model AudioContent {
   listening   ListeningHistory[]
   favorite    Favorite []
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
 }
 
 

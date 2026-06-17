@@ -6,14 +6,20 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ProfileModule } from './profile/profile.module';
 import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware';
-// import { ProfileModule } from './profile/profile.module';
-// import { ProfileModule } from './profile/profile.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { StorageModule } from './storage/storage.module';
+import { ContentModule } from './content/content.module';
+import { CacheModule} from '@nestjs/cache-manager';
+import { CategoriesModule } from './categories/categories.module';
+import { AuthorsModule } from './authors/authors.module';
 
 
 @Module({
   imports: [
-    AuthModule,
-    ProfileModule, 
+    CacheModule.register({
+      isGlobal: true,
+      ttl:      60,
+    }),
     ThrottlerModule.forRoot([
       {
         name: 'login',       // 5 attempts per minute
@@ -26,7 +32,14 @@ import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware
         limit: 10,
       },
     ]),
-    // ProfileModule,
+    AuthModule,
+    ProfileModule,
+    CloudinaryModule,
+    StorageModule,
+    ContentModule,
+    CategoriesModule,
+    AuthorsModule,
+    AuthorsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -44,4 +57,3 @@ export class AppModule implements NestModule {
       .forRoutes('*'); // Attach to every route in the app
   }
 }
-
