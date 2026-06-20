@@ -51,7 +51,10 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,       // Strip unknown fields from the body automatically
       forbidNonWhitelisted: true, // Throw if unknown fields are sent
-      transform: true,       // Auto-convert primitives (e.g. "1" → 1)
+      transform: true, 
+      transformOptions: {
+        enableImplicitConversion: true,
+      },      // Auto-convert primitives (e.g. "1" → 1)
     }),
   );
 

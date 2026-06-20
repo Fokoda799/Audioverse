@@ -12,6 +12,7 @@ import {
     HttpCode,
     HttpStatus,
     UseInterceptors,
+    Request,
 } from '@nestjs/common';
 import { ContentService }    from './content.service';
 import { CreateContentDto }  from './dto/create-content.dto';
@@ -31,7 +32,7 @@ export class ContentController {
     // Supports: ?search=&categoryId=&authorId=&contentType=&page=&limit=
     @Get()
     @CacheTTL(60)
-    findAll(@Query() query: QueryContentDto) {
+    findAll(@Query() query: QueryContentDto, @Request() req: any) {
         return this.contentService.findAll(query);
     }
 
@@ -90,8 +91,8 @@ export class ContentController {
     // Permanent delete — only for GDPR requests or scheduled cleanup
     @Delete(':id/hard')
     @UseGuards(JwtAuthGuard, AdminGuard)
-    hardDelete(@Param('id', ParseUUIDPipe) id: string) {
-        return this.contentService.delete(id);
+        hardDelete(@Param('id', ParseUUIDPipe) id: string) {
+        return this.contentService.hardDelete(id);
     }
 
     // ── DELETE /content/:id ────────────────────────────────────────────────────

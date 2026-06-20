@@ -78,7 +78,7 @@ export class StorageController {
   async getStreamUrl(@Param('id', ParseUUIDPipe) contentId: string) {
     // Fetch the content record to get the stored Cloudinary publicId
     const content = await this.prisma.audioContent.findUnique({
-      where: { id: contentId },
+      where: { id: contentId }, 
       select: { id: true, title: true, audioUrl: true, isPublished: true },
     });
 

@@ -32,9 +32,10 @@ export class QueryContentDto {
     contentType?: ContentType;
 
     // Filter by published status — admin sees all, users only see published
+    @Type(() => Boolean)
     @IsOptional()
     isPublished?: boolean;
-
+    
     // Pagination — @Type(() => Number) converts the string from the URL to a number
     // because query params always arrive as strings
     @IsInt()

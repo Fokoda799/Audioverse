@@ -20,18 +20,18 @@ import { AuthorsModule } from './authors/authors.module';
       isGlobal: true,
       ttl:      60,
     }),
-    ThrottlerModule.forRoot([
-      {
-        name: 'login',       // 5 attempts per minute
-        ttl: 60000,          // 60 seconds in ms
-        limit: 5,
-      },
-      {
-        name: 'register',    // 10 attempts per hour
-        ttl: 3600000,        // 1 hour in ms
-        limit: 10,
-      },
-    ]),
+    // ThrottlerModule.forRoot([
+    //   {
+    //     name: 'login',       // 5 attempts per minute
+    //     ttl: 60000,          // 60 seconds in ms
+    //     limit: 20,
+    //   },
+    //   {
+    //     name: 'register',    // 10 attempts per hour
+    //     ttl: 3600000,        // 1 hour in ms
+    //     limit: 10,
+    //   },
+    // ]),
     AuthModule,
     ProfileModule,
     CloudinaryModule,
@@ -44,10 +44,10 @@ import { AuthorsModule } from './authors/authors.module';
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    }
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: ThrottlerGuard,
+    // }
   ],
 })
 export class AppModule implements NestModule {
