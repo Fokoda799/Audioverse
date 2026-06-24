@@ -13,14 +13,27 @@ import 'package:Audioverse/core/router/app_router.dart';
 import 'package:Audioverse/core/theme/theme.dart';
 import 'package:Audioverse/core/network/network.dart';
 import 'package:Audioverse/features/auth/auth.dart';
+import 'package:Audioverse/core/audio/audio_player_service.dart';
+
+import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light, // since your app is dark-themed
+      systemNavigationBarDividerColor: Colors.transparent,
+    ),
+  );
+
   await dotenv.load(fileName: '.env');
   await Hive.initFlutter();
   await Hive.openBox('categories_cache');
   await Hive.openBox('content_cache');
   await Hive.openBox('recent_searches');
+
+  await AudioPlayerService.instance.init();
 
   final tokenStorage = TokenStorage();
   final dioClient    = DioClient(tokenStorage: tokenStorage);
@@ -41,7 +54,7 @@ void main() async {
   final searchProvider      = SearchProvider(repository: contentRepo, cache: cache);
 
   runApp(AudioVerseApp(
-    contentRepo:          contentRepo, // ← pass it down too
+    contentRepo:          contentRepo,
     authProvider:         authProvider,
     profileProvider:      profileProvider,
     homeProvider:         homeProvider,

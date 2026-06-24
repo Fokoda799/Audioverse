@@ -120,7 +120,7 @@ class _FeaturedSlide extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: GestureDetector(
-        onTap: () => context.push('/home/content/${content.id}'),
+        onTap: () => context.push('/content/${content.id}'),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppRadius.xl),
           child: Stack(

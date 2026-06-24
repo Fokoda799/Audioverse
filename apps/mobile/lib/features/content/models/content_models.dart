@@ -76,10 +76,10 @@ class Content {
       // We guard with null checks so this model works whether the
       // backend sends the full nested object or just the raw IDs.
       author: json['author'] != null
-          ? ContentAuthor.fromJson(json['author'] as Map<String, dynamic>)
+          ? ContentAuthor.fromJson(Map<String, dynamic>.from(json['author'] as Map))
           : null,
       category: json['category'] != null
-          ? ContentCategory.fromJson(json['category'] as Map<String, dynamic>)
+          ? ContentCategory.fromJson(Map<String, dynamic>.from(json['category'] as Map))
           : null,
     );
   }
@@ -177,25 +177,29 @@ class ContentAuthor {
   final String id;
   final String name;
   final String? avatarUrl;
+  final String? bio;
 
   const ContentAuthor({
     required this.id,
     required this.name,
     this.avatarUrl,
+    this.bio,
   });
 
   factory ContentAuthor.fromJson(Map<String, dynamic> json) {
     return ContentAuthor(
       id: json['id'] as String,
       name: json['name'] as String,
-      avatarUrl: json['avatarUrl'] as String?,
+      avatarUrl: json['avatar-url'] as String?,
+      bio: json['bio'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
-    'avatarUrl': avatarUrl,
+    'avatar-url': avatarUrl,
+    'bio': bio,
   };
 }
 

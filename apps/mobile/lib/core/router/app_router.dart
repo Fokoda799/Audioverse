@@ -1,9 +1,10 @@
 import 'package:Audioverse/features/content/content.dart';
 import 'package:Audioverse/features/content/providers/content_detail_provider.dart';
 import 'package:Audioverse/features/content/screens/content_search_screen.dart';
+import 'package:Audioverse/features/content/screens/player_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-// import 'package:provider/provider.dart';
+import 'package:Audioverse/features/player/screen_with_miniplayer.dart';
 
 import 'package:Audioverse/features/auth/auth_provider.dart';
 import 'package:Audioverse/features/auth/screens/login_screen.dart';
@@ -60,6 +61,7 @@ class AppRouter {
       : _authProvider = authProvider;
 
   static final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
 
   late final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
@@ -125,6 +127,58 @@ class AppRouter {
         ),
       ),
 
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/content/:id',
+        pageBuilder: (context, state) {
+          final contentId = state.pathParameters['id']!;
+
+          return _fadePage(
+              state: state,
+              child: ChangeNotifierProvider(
+                create: (context) => ContentDetailProvider(
+                    repository: context.read<ContentRepository>(),
+                    contentId: contentId
+                )..load(),
+                child: ScreenWithMiniplayer(
+                    child: ContentDetailScreen(contentId: contentId)
+                ),
+              )
+          );
+        }
+      ),
+
+      GoRoute(
+        path: '/player',
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            fullscreenDialog: true,
+            child: const FullPlayerScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(0.0, 1.0); // 👈 from bottom
+              const end = Offset.zero;
+
+              const curve = Curves.easeOutCubic; // smooth deceleration
+
+              final tween = Tween(begin: begin, end: end).chain(
+                CurveTween(curve: curve),
+              );
+
+              final curvedAnimation = CurvedAnimation(
+                parent: animation,
+                curve: const Interval(0.0, 1.0, curve: Curves.easeOutCubic),
+              );
+
+              return SlideTransition(
+                position: tween.animate(curvedAnimation),
+                child: child,
+              );
+            },
+          );
+        },
+      ),
+
       // ── Protected routes — bottom nav shell ──────────────
       // Everything that should show the bottom nav bar lives inside
       // this single StatefulShellRoute. The redirect logic above
@@ -137,6 +191,7 @@ class AppRouter {
         branches: [
           // Tab 0: Home
           StatefulShellBranch(
+            navigatorKey: _shellNavigatorKey,
             routes: [
               GoRoute(
                 path: AppRoutes.home,
@@ -144,28 +199,6 @@ class AppRouter {
                   state: state,
                   child: const HomeScreen(),
                 ),
-                routes: [
-                  // Nested so it pushes ON TOP of Home, inside Home's own
-                  // stack — back button returns to Home, not whatever
-                  // tab was previously active.
-                  GoRoute(
-                    path: 'content/:id',
-                    pageBuilder: (context, state) {
-                      final contentId = state.pathParameters['id']!;
-
-                      return _fadePage(
-                        state: state,
-                        child: ChangeNotifierProvider(
-                          create: (context) => ContentDetailProvider(
-                              repository: context.read<ContentRepository>(),
-                              contentId: contentId
-                          )..loadContent(),
-                          child: ContentDetailScreen(contentId: contentId),
-                        )
-                      );
-                    }
-                  ),
-                ],
               ),
             ],
           ),

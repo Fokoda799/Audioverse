@@ -62,7 +62,7 @@ class _ExploreSectionState extends State<ExploreSection> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.lg),
+          horizontal: AppSpacing.md, vertical: AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -73,7 +73,6 @@ class _ExploreSectionState extends State<ExploreSection> {
                   : const SizedBox.shrink();
             },
           ),
-          const SizedBox(height: AppSpacing.xl),
           _TrendingChips(isDark: widget.isDark, textSecondary: textSecondary),
           const SizedBox(height: AppSpacing.xl),
           _CategoryGridSection(isDark: widget.isDark, textSecondary: textSecondary),
@@ -144,10 +143,10 @@ class _RecentSearchChips extends StatelessWidget {
               runSpacing: AppSpacing.sm,
               children: provider.recentSearches
                   .map((s) => _SuggestionChip(
-                label: s,
+                label: s ?? "",
                 isDark: isDark,
                 type: SuggestionChipType.recent,
-                onTap: () => context.read<SearchProvider>().searchNow(s),
+                onTap: () => context.read<SearchProvider>().searchNow(s ?? ""),
               ))
                   .toList(),
             ),

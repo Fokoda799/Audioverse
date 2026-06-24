@@ -98,7 +98,7 @@ class ContentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/home/content/${content.id}'),
+      onTap: () => context.push('/content/${content.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

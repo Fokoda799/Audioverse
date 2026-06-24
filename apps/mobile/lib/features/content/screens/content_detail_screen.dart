@@ -1,3 +1,7 @@
+import 'package:Audioverse/core/utils/app_logger.dart';
+import 'package:Audioverse/features/content/widgets/author_mini_card.dart';
+import 'package:Audioverse/features/content/widgets/expandable_descriiption.dart';
+import 'package:Audioverse/features/content/widgets/related_content_row.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -7,32 +11,7 @@ import 'package:Audioverse/core/widgets/app_loader.dart';
 import 'package:Audioverse/core/widgets/app_button.dart';
 import 'package:Audioverse/features/content/providers/content_detail_provider.dart';
 import 'package:Audioverse/features/home/widgets/empty_state.dart';
-
-// ContentDetailScreen
-//
-// Full detail page for a single content item: cover, title, author,
-// category, description, and a Play button. Reached via
-// /home/content/:id (see app_router.dart) — pushed on top of Home's
-// own stack, so the back arrow returns to Home.
-//
-// This screen owns its OWN ContentDetailProvider instance, scoped to
-// contentId — that's why the Provider is created HERE rather than
-// higher up the tree (unlike HomeProvider/ContentListProvider, which
-// are app-wide and live above the router). Navigating to a different
-// content id creates a fresh provider instance automatically, since
-// go_router gives this widget a new key per id.
-//
-// PLAYBACK: no audio player is wired up yet. The Play button currently
-// only fetches a signed stream URL via ContentDetailProvider.getStreamUrl()
-// and shows it in a snackbar as a placeholder — swap _onPlayPressed's
-// body for your real player (e.g. just_audio) once that's in place.
-//
-// FAVORITES: the heart icon calls FavoriteRepository, which does not
-// exist yet in this codebase. _FavoriteButton below is built against
-// a small interface so the UI is ready the moment that repository
-// lands — see the FavoriteRepository stub at the bottom of this file.
-//
-// content_detail_screen.dart
+import 'package:Audioverse/core/audio/audio_player_service.dart';
 
 class ContentDetailScreen extends StatelessWidget {
   const ContentDetailScreen({super.key, required this.contentId});
@@ -63,7 +42,7 @@ class _ContentDetailView extends StatelessWidget {
           if (provider.errorMessage != null && provider.content == null) {
             return _ErrorView(
               message: provider.errorMessage!,
-              onRetry: provider.loadContent,
+              onRetry: provider.load,
             );
           }
 
@@ -90,10 +69,28 @@ class _ContentDetailView extends StatelessWidget {
                         'Description',
                         style: AppTextStyles.titleLarge(AppColors.textPrimaryDark),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        content.description ?? '',
-                        style: AppTextStyles.bodyMedium(AppColors.textSecondaryDark),
+                      const SizedBox(height: AppSpacing.lg),
+                      ExpandableDescription(text: content.description ?? ''),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (content.author != null) AuthorMiniCard(author: content.author!),
+                      const SizedBox(height: AppSpacing.lg),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RelatedContentRow(
+                            title: 'More from this author',
+                            items: provider.byAuthor,
+                            isLoading: provider.isLoading,
+                            hasError: provider.errorMessage != null,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          RelatedContentRow(
+                            title: 'More in this category',
+                            items: provider.byCategory,
+                            isLoading: provider.isLoading,
+                            hasError: provider.errorMessage != null,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.xxl),
                     ],
@@ -204,16 +201,37 @@ class _ContentDetailView extends StatelessWidget {
   // and shows it as a snackbar placeholder. Replace the body of
   // _onPlayPressed with your real player integration when ready.
   Widget _buildPlayButton(BuildContext context, ContentDetailProvider provider) {
+    final player = AudioPlayerService.instance;
+
+
     return AppButton(
       label: 'Play',
       icon: const Icon(Icons.play_arrow_rounded),
       isLoading: provider.isLoadingStream,
       width: double.infinity,
-      onPressed: () => _onPlayPressed(context, provider),
+      onPressed: () => _onPlayPressed(context, provider, player),
     );
   }
 
-  Future<void> _onPlayPressed(BuildContext context, ContentDetailProvider provider) async {
+  Future<void> _onPlayPressed(BuildContext context, ContentDetailProvider provider, AudioPlayerService player) async {
+    final content = provider.content;
+    if (content == null) return;
+
+    // If this exact content is already loaded in the player, treat the
+    // button as a pause/resume toggle instead of re-fetching a stream URL
+    // and reloading the audio source from scratch every tap.
+    if (player.isCurrentContent(content.id)) {
+      if (player.isPlaying) {
+        await player.pause();
+      } else {
+        await player.resume();
+      }
+      return;
+    }
+
+    // Different content (or nothing loaded yet) — fetch a fresh signed
+    // URL and start playback. getStreamUrl() always fetches fresh rather
+    // than reusing a cached URL, since signed URLs expire.
     final url = await provider.getStreamUrl();
 
     if (!context.mounted) return;
@@ -228,14 +246,29 @@ class _ContentDetailView extends StatelessWidget {
       return;
     }
 
-    // TODO: replace with real playback once a player (e.g. just_audio)
-    // is wired up. For now this just confirms the signed URL was fetched.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Stream URL ready — player not wired up yet'),
-        backgroundColor: AppColors.darkCard,
-      ),
-    );
+    try {
+      AppLogger.d("before playContent");
+      await player.playContent(
+        content: content,
+        streamUrl: url,
+      );
+
+      AppLogger.d("after playContent");
+
+      if (!context.mounted) return;
+
+      AppLogger.d("before navigation");
+
+      context.push('/player');
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not start playback'),
+          backgroundColor: AppColors.errorSurface,
+        ),
+      );
+    }
   }
 
   // ── Category + duration chips ────────────────────────────────────────────

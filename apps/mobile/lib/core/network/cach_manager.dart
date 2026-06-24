@@ -18,7 +18,11 @@ class CacheManager {
       return null;
     }
 
-    return fromJson(cached['data']);
+    final data = cached['data'];
+
+    if (data == null) return null;
+
+    return fromJson(data);
   }
 
   Future<void> save(

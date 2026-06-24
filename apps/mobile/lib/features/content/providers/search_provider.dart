@@ -41,14 +41,14 @@ class SearchProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _hasSearched = false;
   List<Content> _results = [];
-  List<String> _recentSearches = [];
+  List<String?> _recentSearches = [];
   String? _errorMessage;
 
   String get query => _query;
   bool get isLoading => _isLoading;
   bool get hasSearched => _hasSearched;
   List<Content> get results => _results;
-  List<String> get recentSearches => _recentSearches;
+  List<String?> get recentSearches => _recentSearches;
   String? get errorMessage => _errorMessage;
 
   // Distinguishes "user hasn't searched yet" (show suggestions/recent searches)
@@ -122,13 +122,25 @@ class SearchProvider extends ChangeNotifier {
 
   Future<void> _loadRecentSearches() async {
     try {
+      if (!Hive.isBoxOpen('recent_searches')) {
+        await Hive.openBox('recent_searches');
+      }
       final box = Hive.box('recent_searches');
 
-      _recentSearches = await _cache.get(box, 'queries', (json) => json);
+      final cached = await _cache.get(box, 'queries', (json) {
+        if (json is List) {
+          return json.map((e) => e?.toString()).toList();
+        }
+        return <String?>[];
+      });
+      
+      _recentSearches = cached ?? [];
+      notifyListeners();
 
     } catch(e, st) {
       AppLogger.e('Load failed for recent searches', error: e, stackTrace: st);
-      _setError(e);
+      _recentSearches = [];
+      notifyListeners();
     }
   }
 

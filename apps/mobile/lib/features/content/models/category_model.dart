@@ -112,11 +112,11 @@ class CategoryWithContent {
       dynamic Function(Map<String, dynamic>) itemParser,
       ) {
     return CategoryWithContent(
-      category: Category.fromJson(json['category'] as Map<String, dynamic>),
+      category: Category.fromJson(Map<String, dynamic>.from(json['category'] as Map)),
       items: (json['items'] as List<dynamic>)
-          .map((item) => itemParser(item as Map<String, dynamic>))
+          .map((item) => itemParser(Map<String, dynamic>.from(item as Map)))
           .toList(),
-      meta: PaginationMeta.fromJson(json['meta'] as Map<String, dynamic>),
+      meta: PaginationMeta.fromJson(Map<String, dynamic>.from(json['meta'] as Map)),
     );
   }
 }

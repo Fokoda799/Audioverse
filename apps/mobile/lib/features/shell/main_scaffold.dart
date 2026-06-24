@@ -1,3 +1,4 @@
+import 'package:Audioverse/features/content/widgets/mini_player.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Audioverse/core/theme/theme.dart';
@@ -48,10 +49,16 @@ class MainScaffold extends StatelessWidget {
       // The active tab's screen — go_router swaps this via IndexedStack
       // under the hood, so inactive tabs stay mounted (preserving state).
       body: navigationShell,
-      bottomNavigationBar: _BottomNavBar(
-        currentIndex: navigationShell.currentIndex,
-        tabs: _tabs,
-        onTap: _onTap,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const MiniPlayer(),
+          _BottomNavBar(
+            currentIndex: navigationShell.currentIndex,
+            tabs: _tabs,
+            onTap: _onTap,
+          ),
+        ],
       ),
     );
   }

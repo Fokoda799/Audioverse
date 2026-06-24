@@ -47,7 +47,7 @@ class ContentResultTile extends StatelessWidget {
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return InkWell(
-      onTap: () => context.push('/home/content/${content.id}'),
+      onTap: () => context.push('/content/${content.id}'),
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),

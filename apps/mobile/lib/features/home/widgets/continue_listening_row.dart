@@ -97,7 +97,7 @@ class _ContinueListeningCard extends StatelessWidget {
     final content = item.content;
 
     return GestureDetector(
-      onTap: () => context.push('/home/content/${content.id}'),
+      onTap: () => context.push('/content/${content.id}'),
       child: SizedBox(
         width: 160,
         child: Column(

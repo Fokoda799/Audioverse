@@ -97,6 +97,8 @@ export class StorageController {
       3600,
     );
 
+    console.log("Stream url: ", streamUrl);
+
     return {
       contentId: content.id,
       title: content.title,

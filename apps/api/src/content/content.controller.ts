@@ -91,7 +91,7 @@ export class ContentController {
     // Permanent delete — only for GDPR requests or scheduled cleanup
     @Delete(':id/hard')
     @UseGuards(JwtAuthGuard, AdminGuard)
-        hardDelete(@Param('id', ParseUUIDPipe) id: string) {
+    hardDelete(@Param('id', ParseUUIDPipe) id: string) {
         return this.contentService.hardDelete(id);
     }
 

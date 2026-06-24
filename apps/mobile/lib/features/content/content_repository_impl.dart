@@ -57,7 +57,7 @@ class ContentRepositoryImpl implements ContentRepository {
       final box = Hive.box('content_cache');
       final cached = await _cache.get<Content>(box, id,
               (json) => Content.fromJson(
-        Map<String, dynamic>.from(json),
+        Map<String, dynamic>.from(json as Map),
       ));
 
       if (cached != null) {
@@ -146,7 +146,7 @@ class ContentRepositoryImpl implements ContentRepository {
   Future<String> getStreamUrl({required String id}) async {
     try {
       final response = await _dio.get('/content/$id/stream');
-      final streamUrl = response.data['streamUrl'] as String?;
+      final streamUrl = response.data['stream-url'] as String?;
 
       if (streamUrl == null) {
         throw Exception('Server did not return a stream URL');
