@@ -3,21 +3,6 @@ import 'package:Audioverse/core/utils/app_logger.dart';
 import '../models/models.dart';
 import '../content_repository.dart';
 
-// Content List Provider
-//
-// Owns the state for a PAGINATED list of content (e.g. the home feed,
-// or a category's content list). Supports infinite scroll via loadMore().
-//
-// Screens read from it via context.watch<ContentListProvider>()
-// Screens call methods via context.read<ContentListProvider>().methodName()
-//
-// State the UI reacts to:
-//   isLoading      → initial load spinner (list is empty)
-//   isLoadingMore  → spinner at the bottom of the list while paginating
-//   items          → the accumulated list of content across all loaded pages
-//   errorMessage   → show error banners
-//   hasMore        → whether there are more pages to load (controls infinite scroll)
-
 class ContentListProvider extends ChangeNotifier {
   final ContentRepository _repository;
 

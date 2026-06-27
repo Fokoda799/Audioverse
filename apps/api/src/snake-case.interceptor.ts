@@ -3,6 +3,7 @@ import {
   CallHandler, ExecutionContext,
   Injectable, NestInterceptor
 } from '@nestjs/common';
+import { Decimal } from '@prisma/client/runtime/client';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
@@ -17,6 +18,10 @@ function convertKeys(obj: any): any {
   // properties — that's what was producing `{}` for every timestamp field.
   if (obj instanceof Date) {
     return obj.toISOString(); // serialize as a proper ISO string
+  }
+
+  if (obj instanceof Number) {
+    return obj
   }
 
   // ✅ Same blind spot applies to Decimal (Prisma) — without this check,

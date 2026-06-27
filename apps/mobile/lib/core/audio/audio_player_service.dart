@@ -1,10 +1,9 @@
 import 'dart:async';
 // import 'dart:ui';
-
-import 'package:Audioverse/core/audio/history_repository.dart';
 import 'package:Audioverse/core/audio/playback_preferences.dart';
 import 'package:Audioverse/core/theme/app_colors.dart';
 import 'package:Audioverse/features/content/models/content_models.dart';
+import 'package:Audioverse/features/personalization/repositories/history_repository.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:just_audio/just_audio.dart';
@@ -180,7 +179,7 @@ class AudioPlayerService {
       // into a brand new track.
       await _player.setVolume(1.0);
 
-      final savedPositionSec = await _historyRepository?.getPositionSec(content.id);
+      final savedPositionSec = await _historyRepository?.getPositionSec(contentId: content.id);
       if (savedPositionSec != null && savedPositionSec > 0) {
         final resumePosition = Duration(seconds: savedPositionSec);
         await _player.seek(resumePosition);
@@ -188,6 +187,7 @@ class AudioPlayerService {
       }
 
       _player.play();
+      _syncPositionNow();
       _startHistorySync(content.id);
     } catch (e, st) {
       AppLogger.e('Failed to play content ${content.id}', error: e, stackTrace: st);
@@ -233,7 +233,11 @@ class AudioPlayerService {
   void _startHistorySync(String contentId) {
     _historySyncTimer = Timer.periodic(_historySyncInterval, (_) {
       if (_player.playing) {
-        _historyRepository?.syncPosition(contentId, _player.position.inSeconds);
+        _historyRepository?.updatePosition(
+            contentId: contentId,
+            positionSec: _player.position.inSeconds,
+            progressPercent: (_player.position.inSeconds / duration!.inSeconds) * 100
+        );
       }
     });
   }
@@ -241,7 +245,11 @@ class AudioPlayerService {
   void _syncPositionNow() {
     final content = _currentContent;
     if (content != null) {
-      _historyRepository?.syncPosition(content.id, _player.position.inSeconds);
+      _historyRepository?.updatePosition(
+          contentId: content.id,
+          positionSec: _player.position.inSeconds,
+          progressPercent: (_player.position.inSeconds / duration!.inSeconds) * 100
+      );
     }
   }
 

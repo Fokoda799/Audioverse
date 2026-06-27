@@ -2,12 +2,16 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpsertHistoryDto } from './dto/upsert-history.dto';
 import { QueryHistoryDto } from './dto/query-history.dto';
+import { ProfileService } from '@app/profile/profile.service';
 
 @Injectable()
 export class HistoryService {
   private readonly logger = new Logger(HistoryService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly profileService: ProfileService,
+  ) {}
 
   // ── PATCH /history/:contentId ─────────────────────────────────────────────
   //
@@ -27,12 +31,14 @@ export class HistoryService {
       throw new NotFoundException(`Content "${contentId}" not found`);
     }
 
+    const profile = await this.profileService.me(userId);
+
     const history = await this.prisma.listeningHistory.upsert({
       where: {
-        userId_contentId: { userId, contentId },
+        userId_contentId: { userId: profile.id, contentId },
       },
       create: {
-        userId,
+        userId: profile.id,
         contentId,
         positionSec: dto.positionSec,
         progressPercent: dto.progressPercent,
@@ -104,6 +110,26 @@ export class HistoryService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async getPositionSec(id: string, userId: string): Promise<number> {
+    const content = await this.prisma.audioContent.findUnique({
+      where: { id: id },
+      select: { id: true },
+    });
+
+    if (!content) {
+      throw new NotFoundException(`Content "${id}" not found`);
+    }
+
+    const profile = await this.profileService.me(userId);
+
+    const position = await this.prisma.listeningHistory.findFirst({
+      where: { userId: profile.id, contentId: id },
+      select: { positionSec: true },
+    });
+
+    return position?.positionSec ?? 0;
   }
 
   // ── GET /history/continue-listening ───────────────────────────────────────

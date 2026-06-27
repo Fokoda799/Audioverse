@@ -2,6 +2,7 @@ import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/content/widgets/author_mini_card.dart';
 import 'package:Audioverse/features/content/widgets/expandable_descriiption.dart';
 import 'package:Audioverse/features/content/widgets/related_content_row.dart';
+import 'package:Audioverse/features/personalization/providers/favorites_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -395,24 +396,13 @@ class _FavoriteButton extends StatefulWidget {
 }
 
 class _FavoriteButtonState extends State<_FavoriteButton> {
-  bool _isFavorited = false;
+  late final favorite = context.read<FavoritesProvider>();
   bool _isLoading = false;
 
   Future<void> _toggle() async {
     setState(() => _isLoading = true);
-
     try {
-      // FavoriteRepository does not exist yet — this call will fail to
-      // resolve until that repository is built and provided above this
-      // widget in the tree. Left as a direct, explicit failure point
-      // rather than a fake optimistic toggle that silently does nothing.
-      final repository = context.read<FavoriteRepository>();
-      if (_isFavorited) {
-        await repository.removeFavorite(widget.contentId);
-      } else {
-        await repository.addFavorite(widget.contentId);
-      }
-      setState(() => _isFavorited = !_isFavorited);
+      await favorite.toggleFavorite(widget.contentId);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -426,6 +416,8 @@ class _FavoriteButtonState extends State<_FavoriteButton> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isFavorited = favorite.isFavorited(widget.contentId);
+    
     return GestureDetector(
       onTap: _isLoading ? null : _toggle,
       child: Container(
@@ -435,8 +427,8 @@ class _FavoriteButtonState extends State<_FavoriteButton> {
           shape: BoxShape.circle,
         ),
         child: Icon(
-          _isFavorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-          color: _isFavorited ? AppColors.error : Colors.white,
+          isFavorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          color: isFavorited ? AppColors.error : Colors.white,
           size: 20,
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:Audioverse/features/content/content.dart';
 import 'package:Audioverse/features/content/providers/content_detail_provider.dart';
 import 'package:Audioverse/features/content/screens/content_search_screen.dart';
 import 'package:Audioverse/features/content/screens/player_screen.dart';
+import 'package:Audioverse/features/personalization/library_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Audioverse/features/player/screen_with_miniplayer.dart';
@@ -225,7 +226,7 @@ class AppRouter {
                 // TODO: replace with your real LibraryScreen
                 pageBuilder: (context, state) => _fadePage(
                   state: state,
-                  child: const Placeholder(),
+                  child: const LibraryScreen(),
                 ),
               ),
             ],

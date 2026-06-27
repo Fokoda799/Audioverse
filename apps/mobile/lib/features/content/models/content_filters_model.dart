@@ -15,6 +15,7 @@ class ContentFilters {
   final String? authorId;
   final String? contentType;   // e.g. "NOVEL", "PODCAST"
   final bool? isPublished;
+  final bool? isFavorited;
   final int page;
   final int limit;
 
@@ -24,6 +25,7 @@ class ContentFilters {
     this.authorId,
     this.contentType,
     this.isPublished,
+    this.isFavorited,
     this.page = 1,
     this.limit = 10,
   });
@@ -54,6 +56,9 @@ class ContentFilters {
     if (isPublished != null) {
       params['isPublished'] = isPublished;
     }
+    if (isFavorited != null) {
+      params['isFavorited'] = isFavorited;
+    }
 
     return params;
   }
@@ -70,6 +75,7 @@ class ContentFilters {
     String? authorId,
     String? contentType,
     bool? isPublished,
+    bool? isFavorited,
     int? page,
     int? limit,
     bool clearSearch = false,
@@ -77,13 +83,14 @@ class ContentFilters {
     bool clearAuthorId = false,
     bool clearContentType = false,
     bool clearIsPublished = false,
+    bool clearIsFavorited = false,
   }) {
     return ContentFilters(
       search: clearSearch ? null : (search ?? this.search),
       categoryId: clearCategoryId ? null : (categoryId ?? this.categoryId),
       authorId: clearAuthorId ? null : (authorId ?? this.authorId),
       contentType: clearContentType ? null : (contentType ?? this.contentType),
-      isPublished: clearIsPublished ? null : (isPublished ?? this.isPublished),
+      isFavorited: clearIsFavorited ? null : (isFavorited ?? this.isFavorited),
       // Changing any actual filter should reset pagination back to page 1 —
       // otherwise the user could land on "page 3" of a now much-smaller result set.
       page: page ?? 1,
@@ -106,7 +113,8 @@ class ContentFilters {
           categoryId != null ||
           authorId != null ||
           contentType != null ||
-          isPublished != null;
+          isPublished != null ||
+          isFavorited != null;
 
   @override
   String toString() => 'ContentFilters(${toQueryParams()})';
@@ -120,6 +128,7 @@ class ContentFilters {
               other.authorId == authorId &&
               other.contentType == contentType &&
               other.isPublished == isPublished &&
+              other.isFavorited == isFavorited &&
               other.page == page &&
               other.limit == limit);
 
@@ -130,6 +139,7 @@ class ContentFilters {
     authorId,
     contentType,
     isPublished,
+    isFavorited,
     page,
     limit,
   );

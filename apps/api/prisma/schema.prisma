@@ -151,7 +151,7 @@ model Favorite {
   contentId       String
 
   user            UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content           AudioContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  content         AudioContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, contentId])
 

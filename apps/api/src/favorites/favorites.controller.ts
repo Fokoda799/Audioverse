@@ -16,7 +16,6 @@ import {
 import { FavoritesService } from './favorites.service';
 import { QueryFavoritesDto } from './dto/query-favorites.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { AuthGuard } from '@nestjs/passport';
 
 @Controller('favorites')
 @UseGuards(JwtAuthGuard) // every endpoint here requires a logged-in user
@@ -32,7 +31,7 @@ export class FavoritesController {
   ) {
     // req.user.sub is set by JwtStrategy.validate() — same pattern as
     // your refresh endpoint's req.user.sub usage.
-    return this.favoritesService.addFavorite(req.user.sub, contentId);
+    return this.favoritesService.addFavorite(req.user.profileId, contentId);
   }
 
   // ── DELETE /favorites/:contentId ──────────────────────────────────────────
@@ -41,12 +40,18 @@ export class FavoritesController {
     @Request() req: any,
     @Param('contentId', ParseUUIDPipe) contentId: string,
   ) {
-    return this.favoritesService.removeFavorite(req.user.sub, contentId);
+    return this.favoritesService.removeFavorite(req.user.profileId, contentId);
   }
 
   // ── GET /favorites ────────────────────────────────────────────────────────
   @Get()
   findAll(@Request() req: any, @Query() query: QueryFavoritesDto) {
-    return this.favoritesService.findAll(req.user.sub, query);
+    return this.favoritesService.findAll(req.user.profileId, query);
+  }
+
+  // ── GET /favorites/ids ────────────────────────────────────────────────────
+  @Get('ids')
+  findIds(@Request() req: any) {
+    return this.favoritesService.findIds(req.user.profileId);
   }
 }

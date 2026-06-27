@@ -1,8 +1,6 @@
-﻿import 'package:Audioverse/core/network/network.dart';
-import 'package:dio/dio.dart';
-import 'package:Audioverse/core/utils/app_logger.dart';
-import 'profile_models.dart';
-import 'profile_repository.dart';
+﻿import 'package:dio/dio.dart';
+import 'package:Audioverse/features/profile/profile_models.dart';
+import 'package:Audioverse/features/profile/profile_repository.dart';
 
 // Profile Repository Implementation
 //
@@ -23,10 +21,6 @@ class ProfileRepositoryImpl implements ProfileRepository {
   @override
   Future<Profile> getProfile() async {
     try {
-      final tokenStorage = TokenStorage();
-      AppLogger.d('GET /profile/');
-      final token = await tokenStorage.getAccessToken();
-      AppLogger.d('TOKEN = $token');
       final response = await _dio.get('/profile/me');
       return Profile.fromJson(response.data);
     } on DioException catch (e) {
@@ -34,6 +28,15 @@ class ProfileRepositoryImpl implements ProfileRepository {
     }
   }
 
+  @override
+  Future<Profile> update(Profile data) async {
+    try {
+      final response = await _dio.patch('/profile');
+      return Profile.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
 
   // Converts raw Dio errors into readable exceptions.
   // Add this to every repository impl same pattern as auth.

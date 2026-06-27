@@ -10,9 +10,11 @@
 // favorites_repository.dart
 
 abstract class FavoritesRepository {
+  /// Returns all favorited content ids for the current user.
+  Future<Set<String>> getFavoriteIds();
+
   /// Paginated list of the current user's favorited content, with full
-  /// content details joined (cover, title, author, etc.) — matches the
-  /// GET /favorites response shape from the backend.
+  /// content details joined — matches the GET /favorites response shape.
   Future<PaginatedFavorites> getFavorites({required int page});
 
   /// Upsert on the backend — safe to call even if already favorited.

@@ -1,7 +1,7 @@
 ﻿import 'package:dio/dio.dart';
 import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/content/models/models.dart';
-import 'package:Audioverse/features/personalization/favorites_repository.dart';
+import 'package:Audioverse/features/personalization/repositories/favorites_repository.dart';
 
 // FavoritesRepositoryImpl
 //
@@ -15,6 +15,19 @@ class FavoritesRepositoryImpl implements FavoritesRepository {
 
   FavoritesRepositoryImpl({required Dio dio}) : _dio = dio;
 
+  // ── GET /favorites/ids ───────────────────────────────────────────────────
+  @override
+  Future<Set<String>> getFavoriteIds() async {
+    try {
+      final response = await _dio.get('/favorites/ids');
+      final data = response.data as List<dynamic>;
+
+      return data.map((item) => item as String).toSet();
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   // ── GET /favorites ────────────────────────────────────────────────────────
   @override
   Future<PaginatedFavorites> getFavorites({required int page}) async {
@@ -27,13 +40,9 @@ class FavoritesRepositoryImpl implements FavoritesRepository {
       final data = response.data as Map<String, dynamic>;
 
       return PaginatedFavorites(
-        // Backend's GET /favorites returns items shaped as
-        // { ...favoriteFields, content: {...} } — we only need the
-        // nested `content` object here, not the favorite wrapper row
-        // itself (id, createdAt of the favorite aren't useful to the UI).
+        // Backend's GET /favorites now returns Content objects directly.
         items: (data['items'] as List)
-            .map((item) => Content.fromJson(
-            (item as Map<String, dynamic>)['content'] as Map<String, dynamic>))
+            .map((item) => Content.fromJson(item as Map<String, dynamic>))
             .toList(),
         meta: PaginationMeta.fromJson(data['meta'] as Map<String, dynamic>),
       );

@@ -3,11 +3,13 @@ import 'dart:ui';
 
 import 'package:Audioverse/core/audio/audio_player_service.dart';
 import 'package:Audioverse/core/theme/theme.dart';
+import 'package:Audioverse/features/personalization/providers/history_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:provider/provider.dart';
 
 class FullPlayerScreen extends StatefulWidget {
   const FullPlayerScreen({super.key});
@@ -22,6 +24,8 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAll());
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(
@@ -44,6 +48,10 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
         SnackBar(content: Text('Resumed from ${_formatDuration(position)}')),
       );
     });
+  }
+
+  Future<void> _loadAll() async {
+    await context.read<HistoryProvider>().load();
   }
 
   @override

@@ -1,3 +1,4 @@
+import 'package:Audioverse/features/personalization/providers/history_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:Audioverse/core/theme/theme.dart';
@@ -9,6 +10,7 @@ import 'package:Audioverse/features/home/widgets/continue_listening_row.dart';
 import 'package:Audioverse/features/home/widgets/shimmer_box.dart';
 import 'package:Audioverse/features/content/providers/content_list_provider.dart';
 import 'package:Audioverse/features/content/providers/categories_provider.dart';
+import 'package:Audioverse/features/personalization/providers/favorites_provider.dart';
 // import 'package:Audioverse/features/content/models/models.dart';
 
 // HomeScreen
@@ -45,6 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final home = context.read<HomeProvider>();
     final categories = context.read<CategoriesProvider>();
     final contentList = context.read<ContentListProvider>();
+    final favorites = context.read<FavoritesProvider>();
+    // final history = context.read<HistoryProvider>();
 
     // All independent of each other — load concurrently rather than
     // waiting on each one in sequence.
@@ -52,6 +56,8 @@ class _HomeScreenState extends State<HomeScreen> {
       home.loadHome(),
       categories.loadCategories(),
       contentList.load(),
+      favorites.loadFavorites(),
+      // history.loadContinueListening(),
     ]);
   }
 
@@ -59,6 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final home = context.read<HomeProvider>();
     final contentList = context.read<ContentListProvider>();
     final categories = context.read<CategoriesProvider>();
+    // final favorites = context.read<FavoritesProvider>();
+    final history = context.read<HistoryProvider>();
 
     // Categories rarely change — deliberately excluded from pull-to-refresh
     // so refreshing doesn't re-fetch data that's essentially static,
@@ -67,6 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
       home.refresh(),
       contentList.load(filters: contentList.filters.copyWith(page: 1)),
       categories.loadCategories(),
+      history.loadContinueListening(),
+      // favorites.loadFavorites(),
     ]);
   }
 
@@ -135,13 +145,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Continue Listening ──────────────────────────────────────────────────
   Widget _buildContinueListeningSection() {
-    return Consumer<HomeProvider>(
-      builder: (context, home, _) {
+    return Consumer<HistoryProvider>(
+      builder: (context, history, _) {
         // Per the brief: this section is "only visible if history exists" —
         // while loading we still show the shimmer (so it doesn't pop in
         // abruptly), but once loaded with zero items, the entire section
         // including its header disappears rather than rendering empty.
-        final showSection = home.isLoadingContinueListening || home.continueListening.isNotEmpty;
+        final showSection = history.isLoadingContinueListening || history.continueListening.isNotEmpty;
 
         if (!showSection) return const SliverToBoxAdapter(child: SizedBox.shrink());
 
@@ -159,8 +169,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               ContinueListeningRow(
-                items: home.continueListening,
-                isLoading: home.isLoadingContinueListening,
+                items: history.continueListening,
+                isLoading: history.isLoadingContinueListening,
               ),
             ],
           ),

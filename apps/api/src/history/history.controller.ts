@@ -14,11 +14,14 @@ import { HistoryService } from './history.service';
 import { UpsertHistoryDto } from './dto/upsert-history.dto';
 import { QueryHistoryDto } from './dto/query-history.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ProfileService } from '@app/profile/profile.service';
 
 @Controller('history')
 @UseGuards(JwtAuthGuard)
 export class HistoryController {
-  constructor(private readonly historyService: HistoryService) {}
+  constructor(
+    private readonly historyService: HistoryService,
+  ) {}
 
   // ── GET /history/continue-listening ───────────────────────────────────────
   //
@@ -36,6 +39,11 @@ export class HistoryController {
   @Get()
   findAll(@Request() req: any, @Query() query: QueryHistoryDto) {
     return this.historyService.findAll(req.user.sub, query);
+  }
+
+  @Get(':id')
+  getPositionSec(@Param('id') id: string, @Request() req: any) {
+    return this.historyService.getPositionSec(id, req.user.id);
   }
 
   // ── PATCH /history/:contentId ─────────────────────────────────────────────

@@ -2,27 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/content/models/models.dart';
 import 'package:Audioverse/features/content/content_repository.dart';
-import 'package:Audioverse/features/home/widgets/continue_listening_row.dart';
-
-// Home Provider
-//
-// Owns the two pieces of home-screen state that don't belong to any of
-// the existing content providers: the featured carousel items, and the
-// continue-listening row. ContentListProvider/CategoriesProvider (built
-// previously) handle the grid and chips respectively — this provider is
-// scoped specifically to what's unique about the Home screen.
-//
-// Screens read from it via context.watch<HomeProvider>()
-// Screens call methods via context.read<HomeProvider>().methodName()
-//
-// State the UI reacts to:
-//   isLoadingFeatured           → shimmer for the carousel
-//   isLoadingContinueListening  → shimmer for the continue-listening row
-//   featured                    → items for FeaturedCarousel
-//   continueListening           → items for ContinueListeningRow
-//   errorMessage                → show error banners
-//
-// home_provider.dart
 
 class HomeProvider extends ChangeNotifier {
   final ContentRepository   _repository;
@@ -31,15 +10,11 @@ class HomeProvider extends ChangeNotifier {
       : _repository = repository;
 
   bool _isLoadingFeatured = false;
-  bool _isLoadingContinueListening = false;
   List<Content> _featured = [];
-  List<ContinueListeningItem> _continueListening = [];
   String? _errorMessage;
 
   bool get isLoadingFeatured => _isLoadingFeatured;
-  bool get isLoadingContinueListening => _isLoadingContinueListening;
   List<Content> get featured => _featured;
-  List<ContinueListeningItem> get continueListening => _continueListening;
   String? get errorMessage => _errorMessage;
 
   // ── Load everything the Home screen needs on first open ────────────────
@@ -50,7 +25,6 @@ class HomeProvider extends ChangeNotifier {
   Future<void> loadHome() async {
     await Future.wait([
       _loadFeatured(),
-      _loadContinueListening(),
     ]);
   }
 
@@ -77,27 +51,6 @@ class HomeProvider extends ChangeNotifier {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
       _isLoadingFeatured = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> _loadContinueListening() async {
-    _isLoadingContinueListening = true;
-    notifyListeners();
-
-    try {
-      // NOTE: requires a ListeningHistoryRepository method (e.g.
-      // getInProgress()) that returns ListeningHistory rows joined with
-      // their Content — not yet built in this delivery. Wired here as
-      // the integration point; swap in the real call once that
-      // repository exists.
-      _continueListening = [];
-      _errorMessage = null;
-    } catch (e, st) {
-      AppLogger.e('Failed to load continue listening', error: e, stackTrace: st);
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-    } finally {
-      _isLoadingContinueListening = false;
       notifyListeners();
     }
   }

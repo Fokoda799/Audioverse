@@ -20,20 +20,19 @@ class ContentRepositoryImpl implements ContentRepository {
   final Dio _dio;
   final CacheManager _cache;
 
-  ContentRepositoryImpl(
-      {required Dio dio,
-        required CacheManager cache
-      }) : _dio = dio, _cache = cache;
+  ContentRepositoryImpl({required Dio dio, required CacheManager cache})
+    : _dio = dio,
+      _cache = cache;
 
   // ── GET /content ────────────────────────────────────────────────────────
   // Returns a paginated list — NOT a single Content object.
   @override
-  Future<PaginatedContent> getContent({
-    required ContentFilters filters,
-  }) async {
+  Future<PaginatedContent> getContent({required ContentFilters filters}) async {
     try {
+      final isFavoritesRequest = filters.isFavorited == true;
+      final path = isFavoritesRequest ? '/favorites' : '/content';
       final response = await _dio.get(
-        '/content',
+        path,
         queryParameters: filters.toQueryParams(),
       );
 
@@ -55,10 +54,11 @@ class ContentRepositoryImpl implements ContentRepository {
   Future<Content> getContentById({required String id}) async {
     try {
       final box = Hive.box('content_cache');
-      final cached = await _cache.get<Content>(box, id,
-              (json) => Content.fromJson(
-        Map<String, dynamic>.from(json as Map),
-      ));
+      final cached = await _cache.get<Content>(
+        box,
+        id,
+        (json) => Content.fromJson(Map<String, dynamic>.from(json as Map)),
+      );
 
       if (cached != null) {
         return cached;
@@ -95,14 +95,13 @@ class ContentRepositoryImpl implements ContentRepository {
   @override
   Future<List<Content>> getFeatured() async {
     try {
-      final response = await _dio.get(
-        '/content/featured'
-      );
+      final response = await _dio.get('/content/featured');
 
       final data = response.data as List<dynamic>;
 
-      return data.map((e) => Content.fromJson(e as Map<String, dynamic>)).toList();
-
+      return data
+          .map((e) => Content.fromJson(e as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -114,17 +113,17 @@ class ContentRepositoryImpl implements ContentRepository {
     try {
       final box = Hive.box('categories_cache');
 
-      final cached = await _cache.get<List<Category>>(box, 'categories',
-          (json) {
-            // Explicitly type the intermediate list so .map() and .toList()
-            // operate on a known shape instead of dynamic — this is what
-            // actually produces a true List<Category>, not List<dynamic>.
-            final rawList = json as List<dynamic>;
-            return rawList
-                .map((e) => Category.fromJson(Map<String, dynamic>.from(e as Map)))
-                .toList(); // now correctly inferred as List<Category>
-          },
-      );
+      final cached = await _cache.get<List<Category>>(box, 'categories', (
+        json,
+      ) {
+        // Explicitly type the intermediate list so .map() and .toList()
+        // operate on a known shape instead of dynamic — this is what
+        // actually produces a true List<Category>, not List<dynamic>.
+        final rawList = json as List<dynamic>;
+        return rawList
+            .map((e) => Category.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList(); // now correctly inferred as List<Category>
+      });
 
       if (cached != null) return cached;
 

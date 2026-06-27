@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:Audioverse/features/personalization/providers/history_provider.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:Audioverse/core/theme/theme.dart';
@@ -113,8 +114,9 @@ class _LoginScreenState extends State<LoginScreen>
       password: _passwordController.text,
     );
 
-    // No navigation here — the router's redirect watches isLoggedIn
-    // and automatically sends the user to /home when login succeeds.
+    if (!mounted) return;
+
+    await context.read<HistoryProvider>().loadContinueListening();
   }
 
   @override

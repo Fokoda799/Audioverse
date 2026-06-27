@@ -1,31 +1,29 @@
-﻿import 'package:flutter/foundation.dart';
+﻿import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:Audioverse/core/network/file_upload/storage_repository.dart';
 import 'package:Audioverse/core/utils/app_logger.dart';
-import 'profile_models.dart';
-import 'profile_repository.dart';
-
-// Profile Provider
-//
-// Owns ALL state for the profile feature.
-// Screens read from it via context.watch<ProfileProvider>()
-// Screens call methods via context.read<ProfileProvider>().methodName()
-//
-// State the UI reacts to:
-//   isLoading    â†’ show spinners, disable buttons
-//   data         â†’ the main data object for this feature
-//   errorMessage â†’ show error banners
+import 'package:Audioverse/features/profile/profile_models.dart';
+import 'package:Audioverse/features/profile/profile_repository.dart';
 
 // profile_provider.dart
 class ProfileProvider extends ChangeNotifier {
   final ProfileRepository _repository;
+  final StorageRepository _storageRepository;
 
-  ProfileProvider({required ProfileRepository repository})
-      : _repository = repository;
+  ProfileProvider({
+    required ProfileRepository repository,
+    required StorageRepository storageRepository,
+  })
+    : _repository =         repository,
+      _storageRepository =  storageRepository;
 
-  bool         _isLoading    = false;
+  bool _isLoading    = false;
+  bool _isUploadingAvatar = false;
   Profile? _profile;
-  String?      _errorMessage;
+  String? _errorMessage;
 
   bool         get isLoading    => _isLoading;
+  bool get isUploadingAvatar => _isUploadingAvatar;
   Profile? get profile      => _profile;
   String?      get errorMessage => _errorMessage;
 
@@ -46,6 +44,27 @@ class ProfileProvider extends ChangeNotifier {
       _setError(e);
     } finally {
       _stopLoading();
+    }
+  }
+
+
+  Future<void> updateAvatar(File imageFile) async {
+    _isUploadingAvatar = true;
+    notifyListeners();
+
+    try {
+      final publicId = await _storageRepository.uploadCoverImage(imageFile);
+      await _repository.update(_profile!.copyWith(avatarUrl: publicId));
+      _clearError();
+    } catch (e, st) {
+      AppLogger.e('Failed to update avatar', error: e, stackTrace: st);
+      _setError(e);
+      rethrow; // let ProfileScreen know it failed, so it can decide whether
+      // to keep showing the local preview or revert it (see screen
+      // changes below)
+    } finally {
+      _isUploadingAvatar = false;
+      notifyListeners();
     }
   }
 

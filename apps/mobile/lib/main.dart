@@ -1,10 +1,13 @@
 import 'package:Audioverse/core/network/cach_manager.dart';
+import 'package:Audioverse/core/network/file_upload/storage_repository_impl.dart';
 import 'package:Audioverse/features/content/content.dart';
 import 'package:Audioverse/features/content/providers/categories_provider.dart';
 import 'package:Audioverse/features/content/providers/search_provider.dart';
 import 'package:Audioverse/features/home/home_provider.dart';
-import 'package:Audioverse/features/personalization/favorites_provider.dart';
-import 'package:Audioverse/features/personalization/favorites_repository_impl.dart';
+import 'package:Audioverse/features/personalization/providers/favorites_provider.dart';
+import 'package:Audioverse/features/personalization/providers/history_provider.dart';
+import 'package:Audioverse/features/personalization/repositories/favorites_repository_impl.dart';
+import 'package:Audioverse/features/personalization/repositories/history_repository_impl.dart';
 import 'package:Audioverse/features/profile/profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -44,18 +47,23 @@ void main() async {
   final authRepo     = AuthRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
   final profileRepo  = ProfileRepositoryImpl(dio: dioClient.dio);
   final favoriteRepo = FavoritesRepositoryImpl(dio: dioClient.dio);
+  final historyRepo = HistoryRepositoryImpl(dio: dioClient.dio);
+  final storageRepo = StorageRepositoryImpl(dio: dioClient.dio);
+
+  AudioPlayerService.instance.attachHistoryRepository(historyRepo);
 
   // ✅ Keep a reference to contentRepo so we can ALSO put it directly
   // into the widget tree below — not just hand it to other providers.
   final ContentRepository contentRepo = ContentRepositoryImpl(dio: dioClient.dio, cache: cache);
 
   final authProvider        = AuthProvider(repository: authRepo);
-  final profileProvider     = ProfileProvider(repository: profileRepo);
+  final profileProvider     = ProfileProvider(repository: profileRepo, storageRepository: storageRepo);
   final homeProvider        = HomeProvider(repository: contentRepo);
   final contentListProvider = ContentListProvider(repository: contentRepo);
   final categoryProvider    = CategoriesProvider(repository: contentRepo);
   final searchProvider      = SearchProvider(repository: contentRepo, cache: cache);
-  final favoriteProvider            = FavoritesProvider(repository: favoriteRepo);
+  final favoriteProvider    = FavoritesProvider(repository: favoriteRepo);
+  final historyProvider     = HistoryProvider(repository: historyRepo);
 
   runApp(AudioVerseApp(
     contentRepo:          contentRepo,
@@ -65,7 +73,8 @@ void main() async {
     contentListProvider:  contentListProvider,
     categoryProvider:     categoryProvider,
     searchProvider:       searchProvider,
-    favoriteProvider:     favoriteProvider
+    favoriteProvider:     favoriteProvider,
+    historyProvider:      historyProvider
   ));
 }
 
@@ -78,6 +87,7 @@ class AudioVerseApp extends StatefulWidget {
   final CategoriesProvider categoryProvider;
   final SearchProvider searchProvider;
   final FavoritesProvider favoriteProvider;
+  final HistoryProvider historyProvider;
 
   const AudioVerseApp({
     super.key,
@@ -88,7 +98,8 @@ class AudioVerseApp extends StatefulWidget {
     required this.contentListProvider,
     required this.categoryProvider,
     required this.searchProvider,
-    required this.favoriteProvider
+    required this.favoriteProvider,
+    required this.historyProvider
   });
 
   @override
@@ -120,6 +131,7 @@ class _AudioVerseAppState extends State<AudioVerseApp> {
         ChangeNotifierProvider.value(value: widget.categoryProvider),
         ChangeNotifierProvider.value(value: widget.searchProvider),
         ChangeNotifierProvider.value(value: widget.favoriteProvider),
+        ChangeNotifierProvider.value(value: widget.historyProvider),
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,

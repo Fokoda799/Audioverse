@@ -1,48 +1,23 @@
-﻿import 'package:flutter/foundation.dart';
+﻿import 'package:Audioverse/features/content/models/category_model.dart';
+import 'package:Audioverse/features/content/models/content_models.dart';
+import 'package:flutter/foundation.dart';
 import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/personalization/repositories/favorites_repository.dart';
-
-// FavoritesProvider
-//
-// Owns the SET of favorited content IDs app-wide — this is what every
-// heart icon across the app (ContentCard, ContentDetailScreen, search
-// results) checks to decide whether to render filled or outlined.
-//
-// WHY A SET, NOT A LIST OF Content:
-// Every heart icon just needs to answer one question fast: "is THIS
-// contentId favorited?" — isFavorited(id) is an O(1) Set lookup. If this
-// were a List<Content>, every single heart icon render would be doing a
-// linear scan, and worse, you'd have two sources of truth for "is this
-// favorited" (the Set vs. scanning a list) the moment FavoritesScreen
-// also needs the full Content objects for its grid — which it does
-// separately, via getFavorites(), kept intentionally distinct from this
-// Set. This provider answers "is X favorited", FavoritesScreen's own
-// loading logic answers "show me the favorited content".
-//
-// LOAD ON AUTH: loadFavorites() should be called once, right after
-// login succeeds (alongside wherever ProfileProvider.loadProfile() or
-// similar gets triggered) — see integration note at the bottom of this
-// file for exactly where.
-//
-// OPTIMISTIC UPDATES: toggleFavorite() flips the UI state IMMEDIATELY,
-// before the network call resolves. If the call fails, it's rolled back.
-// This is what makes heart-icon taps feel instant rather than waiting
-// on a round-trip before the icon changes — see toggleFavorite() below
-// for the exact rollback mechanics.
-//
-// favorites_provider.dart
 
 class FavoritesProvider extends ChangeNotifier {
   final FavoritesRepository _repository;
 
   FavoritesProvider({required FavoritesRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   // The core state — just IDs, not full Content objects. See the class
   // doc comment above for why.
   Set<String> _favoritedIds = {};
+  List<Content> _items = [];
+  PaginationMeta? _meta;
 
   bool _isLoading = false;
+  bool _isLoadingMore = false;
   String? _errorMessage;
 
   // Tracks which specific contentIds currently have an in-flight toggle
@@ -52,37 +27,62 @@ class FavoritesProvider extends ChangeNotifier {
   final Set<String> _pendingToggles = {};
 
   bool get isLoading => _isLoading;
+  bool get isLoadingMore => _isLoading;
   String? get errorMessage => _errorMessage;
-  Set<String> get favoritedIds => _favoritedIds; // exposed read-only-by-convention
+  Set<String> get favoritedIds => _favoritedIds;
+  List<Content> get items => _items;
 
   bool isFavorited(String contentId) => _favoritedIds.contains(contentId);
   bool isToggling(String contentId) => _pendingToggles.contains(contentId);
+  bool get hasMore => _meta?.hasNextPage ?? true;
+  bool get isEmpty => _items.isEmpty && !_isLoading;
+
+
+  Future<void> load() async {
+    _setLoading();
+
+    try {
+      final results = await _repository.getFavorites(page: 1);
+      _items = results.items;
+      _meta = results.meta;
+      _clearError();
+    } catch (e, st) {
+      AppLogger.e('Failed to load favorite content list', error: e, stackTrace: st);
+      _setError(e);
+    } finally {
+      _stopLoading();
+    }
+  }
+
+  Future<void> loadMore() async {
+    if(!hasMore || _isLoadingMore) return;
+
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final results = await _repository.getFavorites(page: (_meta?.page ?? 1) +1);
+      _items = [..._items, ...results.items];
+      _meta = results.meta;
+    } catch (e, st) {
+      AppLogger.e('Failed to load more favorites content', error: e, stackTrace: st);
+      _setError(e);
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
+    }
+  }
 
   // ── Load on auth ─────────────────────────────────────────────────────────
   //
-  // Fetches ALL favorited IDs in one go. Note this calls getFavorites()
-  // page by page rather than assuming a single page covers everything —
-  // a user could easily have more than 10 favorites, and this Set needs
-  // to be complete for isFavorited() to be correct anywhere in the app,
-  // not just on whatever happens to be page 1.
+  // Fetches ALL favorited IDs in one go using the dedicated ids endpoint.
   Future<void> loadFavorites() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final ids = <String>{};
-      int page = 1;
-
-      while (true) {
-        final result = await _repository.getFavorites(page: page);
-        ids.addAll(result.items.map((content) => content.id));
-
-        if (page >= result.meta.totalPages) break;
-        page++;
-      }
-
-      _favoritedIds = ids;
+      _favoritedIds = await _repository.getFavoriteIds();
       _errorMessage = null;
     } catch (e, st) {
       AppLogger.e('Failed to load favorites', error: e, stackTrace: st);
@@ -158,39 +158,9 @@ class FavoritesProvider extends ChangeNotifier {
       notifyListeners(); // reflect either the confirmed success or the rollback
     }
   }
-}
 
-// ─────────────────────────────────────────────────────────────────────────
-// INTEGRATION NOTES — not code to copy verbatim, but exact wiring points:
-//
-// 1. main.dart — construct alongside your other repositories/providers:
-//
-//      final favoritesRepo = FavoritesRepositoryImpl(dio: dioClient.dio);
-//      final favoritesProvider = FavoritesProvider(repository: favoritesRepo);
-//
-//    ...and register in MultiProvider:
-//
-//      ChangeNotifierProvider.value(value: widget.favoritesProvider),
-//
-// 2. Load on auth — wherever your login success flow currently lives
-//    (likely inside AuthProvider.login() or a post-login callback in
-//    LoginScreen), add:
-//
-//      await context.read<FavoritesProvider>().loadFavorites();
-//
-//    The exact call site depends on AuthProvider's current structure,
-//    which wasn't shared in this conversation — wire it in alongside
-//    however ProfileProvider.loadProfile() is currently triggered post-login,
-//    since both need to happen at the same moment.
-//
-// 3. Clear on logout — wherever AuthProvider.logout() runs, add:
-//
-//      context.read<FavoritesProvider>().clear();
-//
-// 4. DELETE the FavoriteRepository stub that was defined inline at the
-//    bottom of the earlier content_detail_screen.dart delivery — this
-//    FavoritesRepository (note: plural, matching the backend's actual
-//    /favorites route) replaces it. The earlier _FavoriteButton widget
-//    in that file should be replaced too — see the heart-icon delivery
-//    for the replacement.
-// ─────────────────────────────────────────────────────────────────────────
+  void _setLoading()       { _isLoading = true;  _errorMessage = null; notifyListeners(); }
+  void _stopLoading()      { _isLoading = false; notifyListeners(); }
+  void _setError(Object e) { _errorMessage = e.toString().replaceAll('Exception: ', ''); }
+  void _clearError()       { _errorMessage = null; }
+}

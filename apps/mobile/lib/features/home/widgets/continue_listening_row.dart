@@ -1,3 +1,4 @@
+import 'package:Audioverse/features/personalization/models/history_model.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
@@ -51,7 +52,7 @@ class ContinueListeningRow extends StatelessWidget {
     required this.isLoading,
   });
 
-  final List<ContinueListeningItem> items;
+  final List<History> items;
   final bool isLoading;
 
   @override
@@ -90,7 +91,8 @@ class ContinueListeningRow extends StatelessWidget {
 class _ContinueListeningCard extends StatelessWidget {
   const _ContinueListeningCard({required this.item});
 
-  final ContinueListeningItem item;
+  final History item;
+
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +165,7 @@ class _ContinueListeningCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.full),
               child: LinearProgressIndicator(
-                value: item.progress,
+                value: item.progressFraction,
                 minHeight: 4,
                 backgroundColor: AppColors.darkBorder,
                 color: AppColors.accent,

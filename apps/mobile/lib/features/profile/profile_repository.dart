@@ -1,4 +1,4 @@
-﻿import 'profile_models.dart';
+﻿import 'package:Audioverse/features/profile/profile_models.dart';
 
 // Profile Repository â€” abstract contract
 //
@@ -11,9 +11,7 @@
 //   - Local cache during offline mode
 
 abstract class ProfileRepository {
-  // TODO: add your method signatures here
-  // Example:
   Future<Profile>  getProfile();
-  // Future<Profile>  update(String id, Map<String, dynamic> data);
+  Future<Profile>  update(Profile data);
   // Future<void>     delete(String id);
 }

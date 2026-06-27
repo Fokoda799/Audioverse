@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@app/prisma/prisma.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class ProfileService {
@@ -8,10 +9,9 @@ export class ProfileService {
         private prisma: PrismaService,
     ) {}
 
-    async me(userId: string) {
-        console.log('User id: ' + userId)
+    async me(profileId: string) {
         const profile = await this.prisma.userProfile.findFirst({
-            where: { userId: userId },
+            where: { id: profileId },
             select: {
                 id: true,
                 displayName: true,
@@ -23,6 +23,19 @@ export class ProfileService {
         });
 
         if (!profile) throw new NotFoundException("User not found!");
+
+        return profile;
+    }
+
+    async update(profileId: string, dto: UpdateProfileDto) {
+        const profile = await this.prisma.userProfile.update({
+            where: {id: profileId},
+            data: {
+                displayName: dto.displayName,
+                bio: dto.bio,
+                avatarUrl: dto.avatarUrl,
+            }
+        })
 
         return profile;
     }
