@@ -12,6 +12,7 @@ import { UpdateContentDto } from './dto/update-content.dto';
 import { QueryContentDto }  from './dto/query-content.dto';
 import { Cache }       from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { FavoritesService } from '@app/favorites/favorites.service';
 
 @Injectable()
 export class ContentService {
@@ -20,6 +21,7 @@ export class ContentService {
     constructor(
         private readonly prisma:   PrismaService,
         private readonly storage:  StorageService,
+        private readonly favoritesService: FavoritesService, 
         @Inject(CACHE_MANAGER) private readonly cache: Cache,
     ) {}
 
@@ -27,7 +29,7 @@ export class ContentService {
     //
     // Returns a paginated, filterable list of content.
     // Supports: search, categoryId, authorId, contentType, isPublished, page, limit
-    async findAll(query: QueryContentDto) {
+    async findAll(query: QueryContentDto, userId?: string) {
         const {
             search,
             categoryId,
@@ -70,8 +72,20 @@ export class ContentService {
             }),
         ]);
 
+        const favoritedIds = userId
+            ? await this.favoritesService.getFavoritedContentIds(
+                userId,
+                items.map((item) => item.id),
+                )
+            : new Set<string>(); // logged-out — nothing is favorited
+
+            const itemsWithFavorite = items.map((item) => ({
+                ...item,
+                isFavorited: favoritedIds.has(item.id),
+            }));
+
         return {
-            items,
+            items: itemsWithFavorite,
             meta: {
                 total,
                 page,
@@ -87,7 +101,7 @@ export class ContentService {
     //
     // Returns a single content item by ID with full details.
     // Throws 404 if it doesn't exist.
-    async findOne(id: string) {
+    async findOne(id: string, userId?: string) {
         const content = await this.prisma.audioContent.findUnique({
             where:   { id, deletedAt: null },
             include: {
@@ -100,7 +114,11 @@ export class ContentService {
             throw new NotFoundException(`Content with id "${id}" not found`);
         }
 
-        return content;
+        const isFavorited = userId
+            ? (await this.favoritesService.getFavoritedContentIds(userId, [id])).has(id)
+            : false;
+
+        return {...content, isFavorited };
     }
 
     // ── search() ───────────────────────────────────────────────────────────────

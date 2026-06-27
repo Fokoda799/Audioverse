@@ -3,6 +3,8 @@ import 'package:Audioverse/features/content/content.dart';
 import 'package:Audioverse/features/content/providers/categories_provider.dart';
 import 'package:Audioverse/features/content/providers/search_provider.dart';
 import 'package:Audioverse/features/home/home_provider.dart';
+import 'package:Audioverse/features/personalization/favorites_provider.dart';
+import 'package:Audioverse/features/personalization/favorites_repository_impl.dart';
 import 'package:Audioverse/features/profile/profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -39,8 +41,9 @@ void main() async {
   final dioClient    = DioClient(tokenStorage: tokenStorage);
   final cache         = CacheManager();
 
-  final authRepo    = AuthRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
-  final profileRepo = ProfileRepositoryImpl(dio: dioClient.dio);
+  final authRepo     = AuthRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
+  final profileRepo  = ProfileRepositoryImpl(dio: dioClient.dio);
+  final favoriteRepo = FavoritesRepositoryImpl(dio: dioClient.dio);
 
   // ✅ Keep a reference to contentRepo so we can ALSO put it directly
   // into the widget tree below — not just hand it to other providers.
@@ -52,6 +55,7 @@ void main() async {
   final contentListProvider = ContentListProvider(repository: contentRepo);
   final categoryProvider    = CategoriesProvider(repository: contentRepo);
   final searchProvider      = SearchProvider(repository: contentRepo, cache: cache);
+  final favoriteProvider            = FavoritesProvider(repository: favoriteRepo);
 
   runApp(AudioVerseApp(
     contentRepo:          contentRepo,
@@ -61,6 +65,7 @@ void main() async {
     contentListProvider:  contentListProvider,
     categoryProvider:     categoryProvider,
     searchProvider:       searchProvider,
+    favoriteProvider:     favoriteProvider
   ));
 }
 
@@ -72,6 +77,7 @@ class AudioVerseApp extends StatefulWidget {
   final ContentListProvider contentListProvider;
   final CategoriesProvider categoryProvider;
   final SearchProvider searchProvider;
+  final FavoritesProvider favoriteProvider;
 
   const AudioVerseApp({
     super.key,
@@ -82,6 +88,7 @@ class AudioVerseApp extends StatefulWidget {
     required this.contentListProvider,
     required this.categoryProvider,
     required this.searchProvider,
+    required this.favoriteProvider
   });
 
   @override
@@ -112,6 +119,7 @@ class _AudioVerseAppState extends State<AudioVerseApp> {
         ChangeNotifierProvider.value(value: widget.contentListProvider),
         ChangeNotifierProvider.value(value: widget.categoryProvider),
         ChangeNotifierProvider.value(value: widget.searchProvider),
+        ChangeNotifierProvider.value(value: widget.favoriteProvider),
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,

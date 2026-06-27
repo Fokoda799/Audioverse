@@ -33,7 +33,7 @@ export class ContentController {
     @Get()
     @CacheTTL(60)
     findAll(@Query() query: QueryContentDto, @Request() req: any) {
-        return this.contentService.findAll(query);
+        return this.contentService.findAll(query, req.user?.sub);
     }
 
     // ── GET /content/search?q=midnight ────────────────────────────────────────
@@ -61,8 +61,8 @@ export class ContentController {
     // ParseUUIDPipe validates the id format — throws 400 if it's not a valid UUID.
     @Get(':id')
     @CacheTTL(120)
-    findOne(@Param('id', ParseUUIDPipe) id: string) {
-        return this.contentService.findOne(id);
+    findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
+        return this.contentService.findOne(id, req.user?.sub);
     }
 
     // ── POST /content ──────────────────────────────────────────────────────────

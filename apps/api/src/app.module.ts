@@ -13,6 +13,7 @@ import { CacheModule} from '@nestjs/cache-manager';
 import { CategoriesModule } from './categories/categories.module';
 import { AuthorsModule } from './authors/authors.module';
 import { FavoritesModule } from './favorites/favorites.module';
+import { HistoryModule } from './history/history.module';
 
 
 @Module({
@@ -42,6 +43,7 @@ import { FavoritesModule } from './favorites/favorites.module';
     AuthorsModule,
     AuthorsModule,
     FavoritesModule,
+    HistoryModule,
   ],
   controllers: [AppController],
   providers: [
