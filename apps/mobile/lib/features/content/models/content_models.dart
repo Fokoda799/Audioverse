@@ -12,6 +12,7 @@ class Content {
   final String slug;
   final String? description;
   final String coverUrl;
+  final String? blurHash;
   final String? audioUrl;
   final int? durationSec;
   final String contentType;
@@ -34,6 +35,7 @@ class Content {
     required this.slug,
     this.description,
     required this.coverUrl,
+    this.blurHash,
     this.audioUrl,
     this.durationSec,
     required this.contentType,
@@ -57,6 +59,7 @@ class Content {
       slug:        json['slug'] as String,
       description: json['description'] as String?,
       coverUrl:    json['cover-url'] as String,
+      blurHash:    json['blur-hash'] as String?,
       audioUrl:    json['audio-url'] as String?,
       durationSec: json['duration-sec'] as int?,
       contentType: json['content-type'] as String,
@@ -92,6 +95,7 @@ class Content {
     'slug': slug,
     'description': description,
     'coverUrl': coverUrl,
+    'blurHash': blurHash,
     'audioUrl': audioUrl,
     'durationSec': durationSec,
     'contentType': contentType,
@@ -111,6 +115,7 @@ class Content {
     String? title,
     String? description,
     String? coverUrl,
+    String? blurHash,
     String? audioUrl,
     int? durationSec,
     String? contentType,
@@ -128,6 +133,7 @@ class Content {
       slug: slug,
       description: description ?? this.description,
       coverUrl: coverUrl ?? this.coverUrl,
+      blurHash: blurHash ?? this.blurHash,
       audioUrl: audioUrl ?? this.audioUrl,
       durationSec: durationSec ?? this.durationSec,
       contentType: contentType ?? this.contentType,

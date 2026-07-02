@@ -7,6 +7,7 @@ import { join } from 'path';
 import { SnakeCaseInterceptor } from './snake-case.interceptor';
 import { PrismaExceptionFilter } from './prisma/prisma-exception.filter';
 import { PrismaService } from './prisma/prisma.service';
+import { Logger as PinoLogger } from 'nestjs-pino';
 
 // ─── Load .env files ──────────────────────────────────────────────────────────
 // Tries the root .env first, then the monorepo app-specific one.
@@ -27,12 +28,10 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   const app = await NestFactory.create(AppModule, {
-    // Hand logging control to NestJS so all output is structured & consistent.
-    // Remove this line if you want Express's default output instead.
-    logger: ['log', 'warn', 'error', 'debug'],
-    // Suppress the default NestJS startup banner (optional, personal preference)
-    // bufferLogs: true,
+    bufferLogs: true,
   });
+
+  app.useLogger(app.get(PinoLogger));
 
   // ─── Database ──────────────────────────────────────────────────────────────
   const prisma = app.get(PrismaService);

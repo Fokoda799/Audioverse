@@ -1,27 +1,76 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
 import { ProfileModule } from './profile/profile.module';
-import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { StorageModule } from './storage/storage.module';
 import { ContentModule } from './content/content.module';
-import { CacheModule} from '@nestjs/cache-manager';
+import { CacheModule } from '@nestjs/cache-manager';
 import { CategoriesModule } from './categories/categories.module';
 import { AuthorsModule } from './authors/authors.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { HistoryModule } from './history/history.module';
 import { SettingsModule } from './settings/settings.module';
-
+import { LoggerModule } from 'nestjs-pino';
+import { randomUUID } from 'crypto';
 
 @Module({
   imports: [
+    LoggerModule.forRootAsync({
+      useFactory: () => ({
+        pinoHttp: {
+          genReqId: (req, res) => {
+            const header = req.headers['x-correlation-id'];
+            const incomingId = Array.isArray(header) ? header[0] : header;
+            const correlationId =
+              typeof incomingId === 'string' && incomingId.trim().length > 0
+                ? incomingId.trim()
+                : randomUUID();
+
+            res.setHeader('x-correlation-id', correlationId);
+            return correlationId;
+          },
+          customSuccessObject: (req, res) => {
+            const request = req as any;
+            const response = res as any;
+            const authUser = request.user;
+
+            return {
+              correlationId: request.id,
+              userId: authUser?.id ?? null,
+              method: request.method,
+              path: request.originalUrl ?? request.url,
+              status: response.statusCode,
+              durationMs: response.responseTime,
+            };
+          },
+          customErrorObject: (req, res, error) => {
+            const request = req as any;
+            const response = res as any;
+            const authUser = request.user;
+
+            return {
+              correlationId: request.id,
+              userId: authUser?.id ?? null,
+              method: request.method,
+              path: request.originalUrl ?? request.url,
+              status: response.statusCode,
+              durationMs: response.responseTime,
+              errorMessage: error?.message,
+            };
+          },
+          customLogLevel: (req, res, error) => {
+            if (error || res.statusCode >= 500) return 'error';
+            if (res.statusCode >= 400) return 'warn';
+            return 'info';
+          },
+        },
+      }),
+    }),
     CacheModule.register({
       isGlobal: true,
-      ttl:      60,
+      ttl: 60,
     }),
     // ThrottlerModule.forRoot([
     //   {
@@ -48,18 +97,6 @@ import { SettingsModule } from './settings/settings.module';
     SettingsModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: ThrottlerGuard,
-    // }
-  ],
+  providers: [AppService],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(HttpLoggerMiddleware)
-      .forRoutes('*'); // Attach to every route in the app
-  }
-}
+export class AppModule {}
