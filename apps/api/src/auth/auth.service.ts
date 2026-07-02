@@ -1,13 +1,14 @@
 import {
   Injectable,
+  BadRequestException,
   UnauthorizedException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { UserStatus } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
 
@@ -17,7 +18,6 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
   ) {}
-  
 
   // ── Validate user (used by LocalStrategy) ──────────────────────────
   async validateUser(email: string, password: string) {
@@ -45,7 +45,7 @@ export class AuthService {
     });
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
-    await this.saveRefreshToken(user.id, tokens.refreshToken);  
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
 
     return {
       user: {
@@ -57,7 +57,7 @@ export class AuthService {
       ...tokens,
       expires_in: 7,
     };
-  };
+  }
 
   // ── Login ─────────────────────────────────────────────────────────────
   async login(user: any) {
@@ -81,7 +81,7 @@ export class AuthService {
     if (!user) throw new NotFoundException('User not found');
 
     return user;
-  };
+  }
 
   // ── Logout ────────────────────────────────────────────────────────────
   async logout(userId: string) {
@@ -92,6 +92,26 @@ export class AuthService {
     });
 
     return { message: 'Logged out successfully' };
+  }
+
+  async delete(password: string, email: string) {
+    const user = await this.validateUser(email, password);
+
+    if (!user) {
+      throw new ForbiddenException('Password Incorrect!');
+    } 
+
+    const deleted = await this.prisma.users.update({
+      where: { id: user.id },
+      data: {
+        status: UserStatus.PENDING_DELETION,
+        scheduledDeletionAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    await this.logout(deleted.id);
+
+    return { message: 'Account deleted successfully' };
   }
 
   // ── Refresh Token ─────────────────────────────────────────────────────
@@ -106,7 +126,6 @@ export class AuthService {
       // No tokens in DB means the user is fully logged out
       throw new ForbiddenException('Access denied — please log in again');
     }
-
 
     // Step 2: Find which stored token matches the incoming one.
     // We loop because bcrypt.compare must be used (we can't query by hash directly).
@@ -150,7 +169,7 @@ export class AuthService {
     await this.saveRefreshToken(user.id, tokens.refreshToken);
 
     return tokens;
-  };
+  }
 
   // ── Private: Generate Access + Refresh tokens ─────────────────────────
   private async generateTokens(userId: string, email: string, role: string) {

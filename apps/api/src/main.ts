@@ -49,19 +49,19 @@ async function bootstrap() {
   // Validates & transforms incoming request bodies against your DTO classes.
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,       // Strip unknown fields from the body automatically
+      whitelist: true, // Strip unknown fields from the body automatically
       forbidNonWhitelisted: true, // Throw if unknown fields are sent
-      transform: true, 
+      transform: true,
       transformOptions: {
         enableImplicitConversion: true,
-      },      // Auto-convert primitives (e.g. "1" → 1)
+      }, // Auto-convert primitives (e.g. "1" → 1)
     }),
   );
 
   // ─── CORS ──────────────────────────────────────────────────────────────────
   app.enableCors({
     origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 

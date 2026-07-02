@@ -20,4 +20,6 @@ abstract class AuthRepository {
   Future<void> refreshToken(String refreshToken);
 
   Future<User> getCurrentUser();
+
+  Future<bool> deleteAccount(String password);
 }

@@ -18,8 +18,10 @@ class DioClient {
   DioClient({required TokenStorage tokenStorage}) {
     dio = Dio(
       BaseOptions(
-        // Read base URL from .env — never hardcoded
-        baseUrl: dotenv.env['BASE_URL'] ?? '',
+        // Read base URL from .env — fallback to localhost in debug
+        baseUrl: (dotenv.env['BASE_URL'] ?? '').isNotEmpty
+            ? dotenv.env['BASE_URL']!
+            : (kDebugMode ? 'http://localhost:3000' : ''),
 
         // How long to wait for the server to CONNECT before giving up
         connectTimeout: Duration(
@@ -61,8 +63,10 @@ class _AppDioLogger extends Interceptor {
     final safeHeaders = Map<String, dynamic>.from(options.headers)
       ..remove('Authorization');
 
+    // Build a full request target for easier debugging (baseUrl + path)
+    final target = '${options.baseUrl}${options.path}';
     AppLogger.d(
-      '→ ${options.method} ${options.path}\n'
+      '→ ${options.method} $target\n'
           '   Headers: $safeHeaders\n'
           '   Body: ${options.data}',
     );

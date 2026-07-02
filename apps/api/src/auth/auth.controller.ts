@@ -1,10 +1,20 @@
-import { Controller, Post, Get, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Request,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
+import { DeleteAccountDto } from './dto/delete_account.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -30,7 +40,7 @@ export class AuthController {
   @Get('me')
   @HttpCode(HttpStatus.OK)
   me(@Request() req: any) {
-    return this.authService.me(req.user.id)
+    return this.authService.me(req.user.id);
   }
 
   @SkipThrottle()
@@ -41,15 +51,17 @@ export class AuthController {
     return this.authService.logout(req.user.id);
   }
 
-  
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtRefreshGuard)
   @SkipThrottle()
   refresh(@Request() req: any) {
-    return this.authService.refreshToken(
-      req.user.sub,
-      req.user.refreshToken,
-    );
+    return this.authService.refreshToken(req.user.sub, req.user.refreshToken);
+  }
+
+  @Post('delete')
+  @UseGuards(JwtAuthGuard)
+  delete(@Body() body: DeleteAccountDto, @Request() req: any) {
+    return this.authService.delete(body.password, req.user.email);
   }
 }

@@ -15,7 +15,7 @@ class AppTextField extends StatefulWidget {
   const AppTextField({
     super.key,
     required this.controller,
-    required this.hintText,
+    this.hintText,
     this.labelText,
     this.prefixIcon,
     this.isPassword = false,
@@ -30,7 +30,7 @@ class AppTextField extends StatefulWidget {
   });
 
   final TextEditingController controller;
-  final String hintText;
+  final String? hintText;
   final String? labelText;
   final Widget? prefixIcon;
   final bool isPassword;
@@ -74,6 +74,8 @@ class _AppTextFieldState extends State<AppTextField>
   }
 
   void _onFocusChange() {
+    if (!mounted) return;
+
     setState(() => _isFocused = _focusNode.hasFocus);
     if (_focusNode.hasFocus) {
       _focusAnimController.forward();
@@ -84,6 +86,7 @@ class _AppTextFieldState extends State<AppTextField>
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChange);
     if (widget.focusNode == null) _focusNode.dispose();
     _focusAnimController.dispose();
     super.dispose();

@@ -3,6 +3,7 @@ import 'package:Audioverse/features/content/providers/content_detail_provider.da
 import 'package:Audioverse/features/content/screens/content_search_screen.dart';
 import 'package:Audioverse/features/content/screens/player_screen.dart';
 import 'package:Audioverse/features/personalization/library_screen.dart';
+import 'package:Audioverse/features/settings/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Audioverse/features/player/screen_with_miniplayer.dart';
@@ -147,6 +148,14 @@ class AppRouter {
               )
           );
         }
+      ),
+
+      GoRoute(
+        path: '/settings',
+        pageBuilder: (context, state) => _fadePage(
+          state: state,
+          child: const SettingsScreen(),
+        ),
       ),
 
       GoRoute(

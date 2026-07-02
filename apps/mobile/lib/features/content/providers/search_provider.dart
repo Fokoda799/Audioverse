@@ -48,7 +48,7 @@ class SearchProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get hasSearched => _hasSearched;
   List<Content> get results => _results;
-  List<String?> get recentSearches => _recentSearches;
+  List<String?> get recentSearches => _recentSearches ?? <String?>[];
   String? get errorMessage => _errorMessage;
 
   // Distinguishes "user hasn't searched yet" (show suggestions/recent searches)

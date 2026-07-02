@@ -12,6 +12,6 @@
 
 abstract class ProfileRepository {
   Future<Profile>  getProfile();
-  Future<Profile>  update(Profile data);
+  Future<Profile>  update(UpdateProfileRequest data);
   // Future<void>     delete(String id);
 }

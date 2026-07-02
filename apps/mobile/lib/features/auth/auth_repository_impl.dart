@@ -25,11 +25,9 @@ class AuthRepositoryImpl implements AuthRepository {
   final Dio _dio;
   final TokenStorage _tokenStorage;
 
-  AuthRepositoryImpl({
-    required Dio dio,
-    required TokenStorage tokenStorage,
-  })  : _dio = dio,
-        _tokenStorage = tokenStorage;
+  AuthRepositoryImpl({required Dio dio, required TokenStorage tokenStorage})
+    : _dio = dio,
+      _tokenStorage = tokenStorage;
 
   // ── POST /auth/register ────────────────────────────────────
   @override
@@ -47,15 +45,15 @@ class AuthRepositoryImpl implements AuthRepository {
       final token = AuthToken.fromJson(response.data);
       final user = User.fromJson(response.data['user']);
 
-      await Future.wait([ _tokenStorage.saveTokens(
+      await Future.wait([
+        _tokenStorage.saveTokens(
           accessToken: token.accessToken,
           refreshToken: token.refreshToken,
         ),
-        _tokenStorage.saveUser(user)
+        _tokenStorage.saveUser(user),
       ]);
 
       return user;
-
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -63,10 +61,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   // ── POST /auth/login ───────────────────────────────────────
   @override
-  Future<User> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<User> login({required String email, required String password}) async {
     try {
       final response = await _dio.post(
         '/auth/login',
@@ -76,15 +71,15 @@ class AuthRepositoryImpl implements AuthRepository {
       final token = AuthToken.fromJson(response.data);
       final user = User.fromJson(response.data['user']);
 
-      await Future.wait([ _tokenStorage.saveTokens(
-        accessToken: token.accessToken,
-        refreshToken: token.refreshToken,
-      ),
-        _tokenStorage.saveUser(user)
+      await Future.wait([
+        _tokenStorage.saveTokens(
+          accessToken: token.accessToken,
+          refreshToken: token.refreshToken,
+        ),
+        _tokenStorage.saveUser(user),
       ]);
 
       return user;
-
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -127,7 +122,6 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       return token;
-
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -148,9 +142,33 @@ class AuthRepositoryImpl implements AuthRepository {
       await _tokenStorage.saveUser(user);
 
       return user;
-
     } on DioException catch (e) {
       throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<bool> deleteAccount(String password) async {
+    var shouldClearLocalStorage = false;
+
+    try {
+      final response = await _dio.post(
+        '/auth/delete',
+        data: {'password': password},
+      );
+
+      if (response.statusCode == 201) {
+        shouldClearLocalStorage = true;
+        return true;
+      }
+
+      return false;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    } finally {
+      if (shouldClearLocalStorage) {
+        await _tokenStorage.clearTokens();
+      }
     }
   }
 
@@ -179,7 +197,7 @@ class AuthRepositoryImpl implements AuthRepository {
           409 => Exception('An account with this email already exists.'),
           422 => Exception('Validation error: $message'),
           500 => Exception('Server error. Please try again later.'),
-          _   => Exception('Error $statusCode: $message'),
+          _ => Exception('Error $statusCode: $message'),
         };
 
       default:

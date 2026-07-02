@@ -14,6 +14,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { AuthorsModule } from './authors/authors.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { HistoryModule } from './history/history.module';
+import { SettingsModule } from './settings/settings.module';
 
 
 @Module({
@@ -44,6 +45,7 @@ import { HistoryModule } from './history/history.module';
     AuthorsModule,
     FavoritesModule,
     HistoryModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -17,6 +17,13 @@ enum UserRole {
   ADMIN
 }
 
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_DELETION
+  DELETED
+}
+
 enum ContentType {
   NOVEL
   STORY
@@ -26,11 +33,15 @@ enum ContentType {
 }
 
 model Users {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         UserRole @default(USER)
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  passwordHash        String
+  name                String
+  role                UserRole @default(USER)
+  status              UserStatus @default(ACTIVE)
+  deletedAt           DateTime?
+  scheduledDeletionAt DateTime?
+
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -55,7 +66,7 @@ model UserProfile {
   id          String  @id @default(uuid())
   displayName String? // ← optional — user hasn't filled it in yet on register
   avatarUrl   String?
-  bio         String? // ← add this, you'll need it
+  bio         String?
   preferences Json    @default("{}")
 
   userId String @unique

@@ -1,31 +1,15 @@
 ﻿import 'dart:io';
+import 'package:Audioverse/features/auth/auth.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:Audioverse/core/theme/theme.dart';
 import 'package:Audioverse/core/widgets/widgets.dart';
 import 'package:Audioverse/features/profile/profile_provider.dart';
 import 'package:Audioverse/features/profile/profile_stats.dart';
-import 'widgets/avatar_picker.dart';
-import 'widgets/editable_name_field.dart';
-import 'widgets/profile_stats_row.dart';
-
-// ProfileScreen
-//
-// DESIGN: large avatar set inside a dark gradient hero (echoes the
-// ContentDetailScreen cover-art header and MiniPlayer's gradient
-// theming, so Profile doesn't feel like a different app bolted on).
-// Name/bio sit directly under the avatar with no card chrome — editing
-// happens inline, in place, the way Spotify/Apple Music let you tap
-// straight onto your own name rather than opening a separate "edit
-// profile" form. Below the stats divider, account info becomes plain
-// list rows (icon, label, value, chevron-less since these aren't
-// navigable) — the settings-row pattern every major app uses for
-// account details, instead of a second boxed card stacked under the first.
-//
-// Same two explicit gaps as before (avatar upload, stats endpoint) —
-// see avatar_picker.dart / profile_stats.dart for full detail.
-//
-// profile_screen.dart
+import 'package:Audioverse/features/profile/widgets/avatar_picker.dart';
+import 'package:Audioverse/features/profile/widgets/editable_name_field.dart';
+import 'package:Audioverse/features/profile/widgets/profile_stats_row.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -76,11 +60,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _onNameSave(String newName) async {
-    await context.read<ProfileProvider>().updateDisplayName(newName);
+    await context.read<ProfileProvider>().updateInfo(displayName: newName);
   }
 
   Future<void> _onBioSave(String newBio) async {
-    await context.read<ProfileProvider>().updateBio(newBio);
+    await context.read<ProfileProvider>().updateInfo(bio: newBio);
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.darkSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        title: Text(
+          'Log out?',
+          style: AppTextStyles.titleLarge(AppColors.textPrimaryDark),
+        ),
+        content: Text(
+          'You\'ll need to sign in again to access your library.',
+          style: AppTextStyles.bodyMedium(AppColors.textSecondaryDark),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.labelLarge(AppColors.textSecondaryDark),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'Log out',
+              style: AppTextStyles.labelLarge(AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await context.read<AuthProvider>().logout();
+    }
   }
 
   @override
@@ -100,7 +124,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           }
 
-          final profile = profileProvider.profile!;
+          final profile = profileProvider.profile;
+          final user = context.watch<AuthProvider>().currentUser;
 
           return RefreshIndicator(
             onRefresh: profileProvider.loadProfile,
@@ -129,12 +154,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _SettingsRow(
                           icon: Icons.email_outlined,
                           label: 'Email',
-                          value: profile.email ?? '—',
+                          value: user?.email ?? '—',
                         ),
                         _SettingsRow(
                           icon: Icons.calendar_today_outlined,
                           label: 'Member since',
-                          value: _formatJoinDate(profile.createdAt),
+                          value: _formatJoinDate(user?.createdAt),
                           showDivider: false,
                         ),
                       ],
@@ -174,39 +199,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           child: SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Stack(
               children: [
-                AvatarPicker(
-                  size: 104,
-                  currentAvatarUrl: profile.avatarUrl,
-                  localPreviewFile: _localAvatarPreview,
-                  isUploading: context.watch<ProfileProvider>().isUploadingAvatar,
-                  onImageSelected: _onAvatarSelected,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                  child: EditableNameField(
-                    name: profile.displayName ?? '',
-                    emptyPlaceholder: 'Add your name',
-                    centered: true,
-                    onSave: _onNameSave,
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AvatarPicker(
+                        size: 104,
+                        currentAvatarUrl: profile?.avatarUrl,
+                        localPreviewFile: _localAvatarPreview,
+                        isUploading: context.watch<ProfileProvider>().isUploadingAvatar,
+                        onImageSelected: _onAvatarSelected,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                        child: EditableNameField(
+                          name: profile?.displayName ?? '',
+                          emptyPlaceholder: 'Add your name',
+                          centered: true,
+                          onSave: _onNameSave,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                        child: EditableNameField(
+                          name: profile?.bio ?? '',
+                          emptyPlaceholder: 'Add a short bio',
+                          maxLines: 2,
+                          isSecondary: true,
+                          centered: true,
+                          onSave: _onBioSave,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                  child: EditableNameField(
-                    name: profile.bio ?? '',
-                    emptyPlaceholder: 'Add a short bio',
-                    maxLines: 2,
-                    isSecondary: true,
-                    centered: true,
-                    onSave: _onBioSave,
+
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _confirmLogout(context),
+                        icon: const Icon(Icons.logout),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          context.push('/settings');
+                        },
+                        icon: const Icon(Icons.settings),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
+            )
           ),
         ),
       ),

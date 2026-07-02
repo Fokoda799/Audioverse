@@ -1,20 +1,21 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateProfileDto } from './create-profile.dto';
-import { Optional } from '@nestjs/common';
-import { IsString, min, MinLength } from 'class-validator';
+import {
+    IsOptional,
+    IsString,
+    MinLength,
+} from 'class-validator';
 
 export class UpdateProfileDto {
-    @Optional()
+    @IsOptional()
     @IsString()
     @MinLength(2)
-    displayName!: string;
+    displayName?: string;
 
-    @Optional()
+    @IsOptional()
     @IsString()
     @MinLength(3)
-    bio!: string;
+    bio?: string;
 
-    @Optional()
+    @IsOptional()
     @IsString()
-    avatarUrl!: string;
+    avatarUrl?: string;
 }

@@ -9,6 +9,7 @@ import 'package:Audioverse/features/personalization/providers/history_provider.d
 import 'package:Audioverse/features/personalization/repositories/favorites_repository_impl.dart';
 import 'package:Audioverse/features/personalization/repositories/history_repository_impl.dart';
 import 'package:Audioverse/features/profile/profile.dart';
+import 'package:Audioverse/features/settings/settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -49,6 +50,7 @@ void main() async {
   final favoriteRepo = FavoritesRepositoryImpl(dio: dioClient.dio);
   final historyRepo = HistoryRepositoryImpl(dio: dioClient.dio);
   final storageRepo = StorageRepositoryImpl(dio: dioClient.dio);
+  final settingsRepo = SettingsRepositoryImpl(dio: dioClient.dio);
 
   AudioPlayerService.instance.attachHistoryRepository(historyRepo);
 
@@ -64,6 +66,7 @@ void main() async {
   final searchProvider      = SearchProvider(repository: contentRepo, cache: cache);
   final favoriteProvider    = FavoritesProvider(repository: favoriteRepo);
   final historyProvider     = HistoryProvider(repository: historyRepo);
+  final settingsProvider    = SettingsProvider(repository: settingsRepo);
 
   runApp(AudioVerseApp(
     contentRepo:          contentRepo,
@@ -74,7 +77,9 @@ void main() async {
     categoryProvider:     categoryProvider,
     searchProvider:       searchProvider,
     favoriteProvider:     favoriteProvider,
-    historyProvider:      historyProvider
+    historyProvider:      historyProvider,
+    settingsProvider:      settingsProvider,
+
   ));
 }
 
@@ -88,6 +93,7 @@ class AudioVerseApp extends StatefulWidget {
   final SearchProvider searchProvider;
   final FavoritesProvider favoriteProvider;
   final HistoryProvider historyProvider;
+  final SettingsProvider settingsProvider;
 
   const AudioVerseApp({
     super.key,
@@ -99,7 +105,8 @@ class AudioVerseApp extends StatefulWidget {
     required this.categoryProvider,
     required this.searchProvider,
     required this.favoriteProvider,
-    required this.historyProvider
+    required this.historyProvider,
+    required this.settingsProvider
   });
 
   @override
@@ -132,6 +139,7 @@ class _AudioVerseAppState extends State<AudioVerseApp> {
         ChangeNotifierProvider.value(value: widget.searchProvider),
         ChangeNotifierProvider.value(value: widget.favoriteProvider),
         ChangeNotifierProvider.value(value: widget.historyProvider),
+        ChangeNotifierProvider.value(value: widget.settingsProvider),
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,

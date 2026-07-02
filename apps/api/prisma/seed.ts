@@ -31,7 +31,7 @@ const mins = (m: number) => m * 60;
 
 // Deterministic placeholder images — same slug always gives same image
 const cover = (seed: string) => `https://picsum.photos/seed/${seed}/400/400`;
-const audio = (slug: string) => `https://cdn.audioverse.app/audio/${slug}.mp3`;
+const audio = (slug: string) => `audioverse/audio/hoocl37txwhvv9ildktf`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SEED DATA

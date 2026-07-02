@@ -3,28 +3,23 @@
 import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/auth/auth.dart';
 
-
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _repository;
 
-  AuthProvider({required AuthRepository repository})
-      : _repository = repository;
+  AuthProvider({required AuthRepository repository}) : _repository = repository;
 
-  bool    _isLoading    = false;
-  User?   _currentUser;
+  bool _isLoading = false;
+  User? _currentUser;
   String? _errorMessage;
 
-  bool    get isLoading    => _isLoading;
-  User?   get currentUser  => _currentUser;
+  bool get isLoading => _isLoading;
+  User? get currentUser => _currentUser;
   String? get errorMessage => _errorMessage;
-  bool    get isLoggedIn   => _currentUser != null;
+  bool get isLoggedIn => _currentUser != null;
 
   // ── LOGIN ──────────────────────────────────────────────────
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
-    AppLogger.i('Login attempt → $email');  // i: important milestone
+  Future<void> login({required String email, required String password}) async {
+    AppLogger.i('Login attempt → $email'); // i: important milestone
     _setLoading();
     try {
       _currentUser = await _repository.login(email: email, password: password);
@@ -46,7 +41,11 @@ class AuthProvider extends ChangeNotifier {
     AppLogger.i('Register attempt → $email');
     _setLoading();
     try {
-      _currentUser = await _repository.register(name: name, email: email, password: password);
+      _currentUser = await _repository.register(
+        name: name,
+        email: email,
+        password: password,
+      );
       AppLogger.i('Register success → user: ${_currentUser?.id}');
       _clearError();
     } catch (e, st) {
@@ -71,6 +70,27 @@ class AuthProvider extends ChangeNotifier {
       AppLogger.w('Logout server call failed — clearing locally', error: e);
       _currentUser = null;
       _clearError();
+    } finally {
+      _stopLoading();
+    }
+  }
+
+  Future<void> deleteAccount(String password) async {
+    _setLoading();
+    try {
+      AppLogger.d("delete");
+      final deleted = await _repository.deleteAccount(password);
+
+      if (!deleted) {
+        _setError("Password incorrect!");
+        return;
+      }
+      _currentUser = null;
+      _clearError();
+      AppLogger.i('Logout success');
+    } catch (e) {
+      AppLogger.w('Delete account failed', error: e);
+      _setError(e);
     } finally {
       _stopLoading();
     }

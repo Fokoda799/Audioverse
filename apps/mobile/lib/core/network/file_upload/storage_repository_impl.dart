@@ -37,7 +37,7 @@ class StorageRepositoryImpl implements StorageRepository {
 
       final response = await _dio.post('/storage/upload/cover', data: formData);
 
-      final publicId = response.data['publicId'] as String?;
+      final publicId = response.data['public-id'] as String?;
 
       if (publicId == null) {
         throw Exception('Upload succeeded but no publicId was returned');

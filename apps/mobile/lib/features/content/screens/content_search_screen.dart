@@ -49,6 +49,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
+      // Ensure we start with a clean state when entering the search screen
+      context.read<SearchProvider>().clear();
     });
   }
 
@@ -56,8 +58,6 @@ class _SearchScreenState extends State<SearchScreen> {
   void dispose() {
     _controller.dispose();
     _focusNode.dispose();
-    // Clear provider state when leaving so stale results don't show next time.
-    context.read<SearchProvider>().clear();
     super.dispose();
   }
 

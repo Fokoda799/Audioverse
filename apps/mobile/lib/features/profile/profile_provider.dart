@@ -19,6 +19,7 @@ class ProfileProvider extends ChangeNotifier {
 
   bool _isLoading    = false;
   bool _isUploadingAvatar = false;
+
   Profile? _profile;
   String? _errorMessage;
 
@@ -32,7 +33,6 @@ class ProfileProvider extends ChangeNotifier {
   String?           get displayName => _profile?.displayName;
   String?           get avatarUrl   => _profile?.avatarUrl;
   String?           get bio         => _profile?.bio;
-  UserPreferences   get preferences => _profile?.preferences ?? const UserPreferences();
 
   Future<void> loadProfile() async {
     _setLoading();
@@ -54,7 +54,7 @@ class ProfileProvider extends ChangeNotifier {
 
     try {
       final publicId = await _storageRepository.uploadCoverImage(imageFile);
-      await _repository.update(_profile!.copyWith(avatarUrl: publicId));
+      _profile = await _repository.update(UpdateProfileRequest(avatarUrl: publicId));
       _clearError();
     } catch (e, st) {
       AppLogger.e('Failed to update avatar', error: e, stackTrace: st);
@@ -65,6 +65,26 @@ class ProfileProvider extends ChangeNotifier {
     } finally {
       _isUploadingAvatar = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> updateInfo({String? displayName, String? bio}) async {
+    _setLoading();
+
+    try {
+      _profile = await _repository.update(
+        UpdateProfileRequest(
+          displayName: displayName,
+          bio: bio,
+        ),
+      );
+      _clearError();
+    } catch (e, st) {
+      AppLogger.e('Failed to update infos', error: e, stackTrace: st);
+      _setError(e);
+      rethrow;
+    } finally {
+      _stopLoading();
     }
   }
 

@@ -1,9 +1,9 @@
-﻿import 'package:Audioverse/core/utils/app_logger.dart';
+﻿// import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:dio/dio.dart';
-import 'package:Audioverse/features/profile/profile_models.dart';
-import 'package:Audioverse/features/profile/profile_repository.dart';
+import 'package:Audioverse/features/settings/settings_models.dart';
+import 'package:Audioverse/features/settings/settings_repository.dart';
 
-// Profile Repository Implementation
+// Settings Repository Implementation
 //
 // Makes real HTTP calls using Dio.
 // The Dio instance is injected â€” it already has the AuthInterceptor
@@ -14,35 +14,36 @@ import 'package:Audioverse/features/profile/profile_repository.dart';
 //   2. Parse the JSON response with fromJson()
 //   3. Return the clean model â€” or throw a readable exception
 
-class ProfileRepositoryImpl implements ProfileRepository {
+class SettingsRepositoryImpl implements SettingsRepository {
   final Dio _dio;
 
-  ProfileRepositoryImpl({required Dio dio}) : _dio = dio;
+  SettingsRepositoryImpl({required Dio dio}) : _dio = dio;
 
   @override
-  Future<Profile> getProfile() async {
+  Future<UserPreferences> updatePreferences(UserPreferences data) async {
     try {
-      final response = await _dio.get('/profile/me');
-      return Profile.fromJson(response.data);
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  @override
-  Future<Profile> update(UpdateProfileRequest data) async {
-    try {
-      final response = await _dio.patch('/profile',
-        data: data,
+      final response = await _dio.patch(
+        '/settings/preferences',
+        data: data.toJson(),
       );
-      return Profile.fromJson(response.data);
+      return UserPreferences.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  // Converts raw Dio errors into readable exceptions.
-  // Add this to every repository impl same pattern as auth.
+  @override
+  Future<UserPreferences> getPreferences() async {
+    try {
+      final response = await _dio.get(
+        '/settings/preferences',
+      );
+      return UserPreferences.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   Exception _handleError(DioException e) {
     switch (e.type) {
       case DioExceptionType.connectionTimeout:

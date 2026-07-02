@@ -116,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     if (!mounted) return;
 
-    await context.read<HistoryProvider>().loadContinueListening();
+    await context.read<HistoryProvider>().loadContinueListening();await context.read<HistoryProvider>().loadContinueListening();
   }
 
   @override
