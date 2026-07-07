@@ -1,21 +1,35 @@
-﻿import 'package:flutter/foundation.dart';
+﻿import 'package:Audioverse/core/auth/google.dart';
+import 'package:flutter/foundation.dart';
+
 
 import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/auth/auth.dart';
+// import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _repository;
+  final GoogleAuthService _googleAuth;
 
-  AuthProvider({required AuthRepository repository}) : _repository = repository;
+  AuthProvider({required AuthRepository repository, required GoogleAuthService googleAuth})
+      : _repository = repository,
+        _googleAuth = googleAuth;
 
   bool _isLoading = false;
   User? _currentUser;
   String? _errorMessage;
+  bool _isGuest = false;
 
   bool get isLoading => _isLoading;
   User? get currentUser => _currentUser;
   String? get errorMessage => _errorMessage;
   bool get isLoggedIn => _currentUser != null;
+  bool get isGuest => _isGuest;
+
+  void setGuest() {
+    if (_currentUser != null) return;
+
+    _isGuest = true;
+  }
 
   // ── LOGIN ──────────────────────────────────────────────────
   Future<void> login({required String email, required String password}) async {
@@ -23,6 +37,7 @@ class AuthProvider extends ChangeNotifier {
     _setLoading();
     try {
       _currentUser = await _repository.login(email: email, password: password);
+      _isGuest = false;
       _clearError();
     } catch (e, st) {
       AppLogger.e('Login failed → $email', error: e, stackTrace: st);
@@ -46,10 +61,27 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
       );
+      _isGuest = false;
       AppLogger.i('Register success → user: ${_currentUser?.id}');
       _clearError();
     } catch (e, st) {
       AppLogger.e('Register failed → $email', error: e, stackTrace: st);
+      _setError(e);
+    } finally {
+      _stopLoading();
+    }
+  }
+
+  Future<void> googleSignIn() async {
+    _setLoading();
+    try {
+      final tokenId = await _googleAuth.signInAndGetIdToken();
+      if (tokenId == null) throw Exception('Sign-in cancelled');
+      _currentUser = await _repository.googleSignIn(tokenId: tokenId);
+      _isGuest = false;
+      _clearError();
+    } catch (e, st) {
+      AppLogger.e('Login failed ', error: e, stackTrace: st);
       _setError(e);
     } finally {
       _stopLoading();

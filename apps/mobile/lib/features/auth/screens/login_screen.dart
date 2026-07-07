@@ -1,5 +1,6 @@
 ﻿import 'package:Audioverse/features/personalization/providers/history_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:Audioverse/core/theme/theme.dart';
@@ -182,6 +183,23 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
           ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: AppButton(
+                  label: "Skip for now",
+                  variant: AppButtonVariant.ghost,
+                  width: 100.0,
+                  onPressed: () {
+                    auth.setGuest();
+                    context.go("/home");
+                  }
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -288,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen>
               const SizedBox(height: AppSpacing.md),
               const _OrDivider(),
               const SizedBox(height: AppSpacing.md),
-              _buildSocialButtons(isDark),
+              _buildSocialButtons(isDark, context),
             ],
           ],
         ),
@@ -296,8 +314,10 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildSocialButtons(bool isDark) {
-    // Your existing social buttons — unchanged
+  Widget _buildSocialButtons(bool isDark, BuildContext context) {
+
+    final auth = context.read<AuthProvider>();
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -318,7 +338,7 @@ class _LoginScreenState extends State<LoginScreen>
           icon: Icon(Icons.apple,
               color: isDark ? Colors.white : Colors.black, size: 34),
           isDark: isDark,
-          onTap: () { /* placeholder */ },
+          onTap: () => auth.googleSignIn(),
         ),
       ],
     );

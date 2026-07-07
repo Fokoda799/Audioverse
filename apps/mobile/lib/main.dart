@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:Audioverse/core/auth/google.dart';
 import 'package:Audioverse/core/network/cach_manager.dart';
 import 'package:Audioverse/core/network/file_upload/storage_repository_impl.dart';
 import 'package:Audioverse/core/error/app_crash_reporter.dart';
@@ -14,6 +15,7 @@ import 'package:Audioverse/features/personalization/repositories/favorites_repos
 import 'package:Audioverse/features/personalization/repositories/history_repository_impl.dart';
 import 'package:Audioverse/features/profile/profile.dart';
 import 'package:Audioverse/features/settings/settings.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -116,14 +118,15 @@ Future<void> _bootstrapApp(AppCrashReporter crashReporter) async {
   final tokenStorage = TokenStorage();
   final dioClient = DioClient(tokenStorage: tokenStorage);
   final cache = CacheManager();
+  final googleAuth = GoogleAuthService();
 
   final authRepo = AuthRepositoryImpl(
     dio: dioClient.dio,
     tokenStorage: tokenStorage,
   );
-  final profileRepo = ProfileRepositoryImpl(dio: dioClient.dio);
-  final favoriteRepo = FavoritesRepositoryImpl(dio: dioClient.dio);
-  final historyRepo = HistoryRepositoryImpl(dio: dioClient.dio);
+  final profileRepo = ProfileRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
+  final favoriteRepo = FavoritesRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
+  final historyRepo = HistoryRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
   final storageRepo = StorageRepositoryImpl(dio: dioClient.dio);
   final settingsRepo = SettingsRepositoryImpl(dio: dioClient.dio);
 
@@ -136,7 +139,7 @@ Future<void> _bootstrapApp(AppCrashReporter crashReporter) async {
     cache: cache,
   );
 
-  final authProvider = AuthProvider(repository: authRepo);
+  final authProvider = AuthProvider(repository: authRepo, googleAuth: googleAuth);
   crashReporter.attachAuthProvider(authProvider);
   final profileProvider = ProfileProvider(
     repository: profileRepo,

@@ -35,6 +35,14 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
+  @Throttle({ login: { ttl: 60000, limit: 5 } })
+  @UseGuards(LocalAuthGuard)
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  async googleLogin(@Body('idToken') idToken: string) {
+    return this.authService.loginWithGoogle(idToken);
+  }
+
   @SkipThrottle()
   @UseGuards(JwtAuthGuard)
   @Get('me')

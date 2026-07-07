@@ -1,4 +1,5 @@
-﻿import 'package:Audioverse/core/utils/app_logger.dart';
+﻿import 'package:Audioverse/core/network/network.dart';
+import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:dio/dio.dart';
 import 'package:Audioverse/features/profile/profile_models.dart';
 import 'package:Audioverse/features/profile/profile_repository.dart';
@@ -16,12 +17,17 @@ import 'package:Audioverse/features/profile/profile_repository.dart';
 
 class ProfileRepositoryImpl implements ProfileRepository {
   final Dio _dio;
+  final TokenStorage _tokenStorage;
 
-  ProfileRepositoryImpl({required Dio dio}) : _dio = dio;
+  ProfileRepositoryImpl({required Dio dio, required TokenStorage tokenStorage})
+      : _dio = dio,
+        _tokenStorage = tokenStorage;
 
   @override
-  Future<Profile> getProfile() async {
+  Future<Profile?> getProfile() async {
     try {
+      final token = await _tokenStorage.getAccessToken();
+      if (token == null || token.isEmpty) return null;
       final response = await _dio.get('/profile/me');
       return Profile.fromJson(response.data);
     } on DioException catch (e) {

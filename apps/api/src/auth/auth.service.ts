@@ -11,9 +11,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UserStatus } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
+
+  private googleClient = new OAuth2Client(process.env.GOOGLE_WEB_CLIENT_ID);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -64,6 +68,52 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email, user.role);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
     return { user, ...tokens, expires_in: 15 };
+  }
+
+  async loginWithGoogle(idToken: string) {
+    const ticket = await this.googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_WEB_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload?.email) {
+      throw new UnauthorizedException('Invalid Google token');
+    }
+
+    const { email, name, picture, sub: googleId } = payload;
+
+    let user = await this.prisma.users.findUnique({
+      where: { email: email }
+    });
+    if (!user) {
+      user = await this.prisma.users.create({
+        data: {
+          email,
+          name,
+          googleId,
+          provider: 'google',
+          userProfile: { create: {avatarUrl: picture, displayName: name} }
+        }
+      });
+    } else if (!user.googleId) {
+      // existing email/password user linking their Google account
+      await this.prisma.users.update(user.id, { googleId, provider: 'google' });
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+      ...tokens,
+      expires_in: 7,
+    };
   }
 
   async me(userId: any) {

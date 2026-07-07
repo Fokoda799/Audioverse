@@ -1,4 +1,5 @@
-﻿import 'package:dio/dio.dart';
+﻿import 'package:Audioverse/core/network/token_storage.dart';
+import 'package:dio/dio.dart';
 import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/content/models/models.dart';
 import 'package:Audioverse/features/personalization/repositories/favorites_repository.dart';
@@ -12,13 +13,19 @@ import 'package:Audioverse/features/personalization/repositories/favorites_repos
 
 class FavoritesRepositoryImpl implements FavoritesRepository {
   final Dio _dio;
+  final TokenStorage _tokenStorage;
 
-  FavoritesRepositoryImpl({required Dio dio}) : _dio = dio;
+  FavoritesRepositoryImpl({required Dio dio, required TokenStorage tokenStorage})
+      : _dio = dio,
+        _tokenStorage = tokenStorage;
 
   // ── GET /favorites/ids ───────────────────────────────────────────────────
   @override
   Future<Set<String>> getFavoriteIds() async {
     try {
+      final token = await _tokenStorage.getAccessToken();
+      if (token == null || token.isEmpty) return <String>{};
+
       final response = await _dio.get('/favorites/ids');
       final data = response.data as List<dynamic>;
 

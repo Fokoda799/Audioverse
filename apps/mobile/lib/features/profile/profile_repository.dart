@@ -11,7 +11,7 @@
 //   - Local cache during offline mode
 
 abstract class ProfileRepository {
-  Future<Profile>  getProfile();
+  Future<Profile?>  getProfile();
   Future<Profile>  update(UpdateProfileRequest data);
   // Future<void>     delete(String id);
 }

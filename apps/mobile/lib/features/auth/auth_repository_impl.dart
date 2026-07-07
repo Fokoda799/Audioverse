@@ -85,6 +85,33 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  @override
+  Future<User> googleSignIn({
+    required String tokenId,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/auth/google',
+        data: {'token_id': tokenId},
+      );
+
+      final token = AuthToken.fromJson(response.data);
+      final user = User.fromJson(response.data['user']);
+
+      await Future.wait([
+        _tokenStorage.saveTokens(
+          accessToken: token.accessToken,
+          refreshToken: token.refreshToken,
+        ),
+        _tokenStorage.saveUser(user),
+      ]);
+
+      return user;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   // ── POST /auth/logout ──────────────────────────────────────
   @override
   Future<void> logout() async {

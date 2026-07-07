@@ -1,3 +1,4 @@
+import 'package:Audioverse/features/auth/auth.dart';
 import 'package:Audioverse/features/personalization/providers/history_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -44,11 +45,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadAll() async {
+    final auth = context.read<AuthProvider>();
     final home = context.read<HomeProvider>();
     final categories = context.read<CategoriesProvider>();
     final contentList = context.read<ContentListProvider>();
     final favorites = context.read<FavoritesProvider>();
-    // final history = context.read<HistoryProvider>();
+    final history = context.read<HistoryProvider>();
 
     // All independent of each other — load concurrently rather than
     // waiting on each one in sequence.
@@ -57,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
       categories.loadCategories(),
       contentList.load(),
       favorites.loadFavorites(),
-      // history.loadContinueListening(),
+      history.loadContinueListening(),
     ]);
   }
 

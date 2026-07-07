@@ -1,4 +1,4 @@
-package com.example.mobile
+package com.fokoda.audioverse
 
 import com.ryanheise.audioservice.AudioServiceActivity
 

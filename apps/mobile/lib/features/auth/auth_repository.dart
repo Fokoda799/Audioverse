@@ -15,6 +15,10 @@ abstract class AuthRepository {
     required String password,
   });
 
+  Future<User> googleSignIn({
+    required String tokenId,
+  });
+
   Future<void> logout();
 
   Future<void> refreshToken(String refreshToken);

@@ -1,3 +1,4 @@
+import 'package:Audioverse/core/network/network.dart';
 import 'package:Audioverse/features/personalization/models/history_model.dart';
 import 'package:Audioverse/features/personalization/repositories/history_repository.dart';
 import 'package:dio/dio.dart';
@@ -15,8 +16,11 @@ import 'package:Audioverse/features/content/models/models.dart';
 
 class HistoryRepositoryImpl implements HistoryRepository {
   final Dio _dio;
+  final TokenStorage _tokenStorage;
 
-  HistoryRepositoryImpl({required Dio dio}) : _dio = dio;
+  HistoryRepositoryImpl({required Dio dio, required TokenStorage tokenStorage})
+      : _dio = dio,
+        _tokenStorage = tokenStorage;
 
   // ── GET /history ────────────────────────────────────────────────────────
   @override
@@ -48,6 +52,9 @@ class HistoryRepositoryImpl implements HistoryRepository {
   @override
   Future<List<History>> getContinueListening() async {
     try {
+      final token = await _tokenStorage.getAccessToken();
+      if (token == null || token.isEmpty) return <History>[];
+
       final response = await _dio.get('/history/continue-listening');
 
       return (response.data as List)

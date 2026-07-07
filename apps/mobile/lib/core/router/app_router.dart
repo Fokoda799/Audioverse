@@ -32,30 +32,6 @@ class AppRoutes {
   static const profile        = '/profile';
 }
 
-// ─────────────────────────────────────────────────────────────
-// AppRouter
-//
-// Receives AuthProvider so the redirect logic can check
-// isLoggedIn without needing a BuildContext.
-//
-// HOW REDIRECT WORKS:
-//   Every time AuthProvider calls notifyListeners(), the router
-//   re-evaluates the redirect function. If the user just logged
-//   in, isLoggedIn becomes true and the router automatically
-//   sends them to /home — no manual navigation needed in screens.
-//
-// STRUCTURE:
-//   Auth routes (login/register/forgot-password) stay as plain
-//   top-level GoRoutes, exactly as before — they have no bottom
-//   nav and shouldn't be wrapped in the shell.
-//
-//   The 4 bottom-nav tabs (home/search/library/profile) are now
-//   ONE StatefulShellRoute, nested inside the SAME routes list.
-//   The redirect function doesn't care about this nesting — it
-//   matches on state.matchedLocation, which works identically
-//   whether a route is top-level or nested inside a shell branch.
-// ─────────────────────────────────────────────────────────────
-
 class AppRouter {
   final AuthProvider _authProvider;
 
@@ -75,16 +51,18 @@ class AppRouter {
 
     redirect: (context, state) {
       final isLoggedIn     = _authProvider.isLoggedIn;
+      final isGuest        = _authProvider.isGuest;
       final isOnAuthScreen = [
         AppRoutes.login,
         AppRoutes.register,
         AppRoutes.forgotPassword,
       ].contains(state.matchedLocation);
+      final isAnonymous = !isLoggedIn && !isGuest;
 
       AppLogger.d("Is logged in : $isLoggedIn");
 
       // Not logged in and trying to access a protected screen → login
-      if (!isLoggedIn && !isOnAuthScreen) return AppRoutes.login;
+      if (isAnonymous && !isOnAuthScreen) return AppRoutes.login;
 
       // Already logged in and on an auth screen → home
       // (prevents going back to login after successful auth)
