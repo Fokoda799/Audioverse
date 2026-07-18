@@ -50,17 +50,17 @@ class ContentCardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AspectRatio(
           aspectRatio: 1,
           child: ShimmerBox(borderRadius: AppRadius.lg),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: AppSpacing.sm),
         ShimmerBox(height: 14, width: double.infinity),
-        const SizedBox(height: 6),
-        const ShimmerBox(height: 12, width: 90),
+        SizedBox(height: 6),
+        ShimmerBox(height: 12, width: 90),
       ],
     );
   }

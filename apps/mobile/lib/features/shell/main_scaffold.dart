@@ -1,5 +1,7 @@
 import 'package:Audioverse/features/content/widgets/mini_player.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Audioverse/core/theme/theme.dart';
 
@@ -44,7 +46,7 @@ class MainScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: AppColors.darkBackground,
       // The active tab's screen — go_router swaps this via IndexedStack
       // under the hood, so inactive tabs stay mounted (preserving state).
@@ -60,6 +62,17 @@ class MainScaffold extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (kIsWeb) return scaffold;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: Colors.transparent,
+      ),
+      child: scaffold,
     );
   }
 }

@@ -1,9 +1,11 @@
+import 'package:Audioverse/core/network/cach_manager.dart';
 import 'package:Audioverse/core/network/network.dart';
 import 'package:Audioverse/features/personalization/models/history_model.dart';
 import 'package:Audioverse/features/personalization/repositories/history_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/content/models/models.dart';
+import 'package:hive_ce/hive.dart';
 
 // HistoryRepositoryImpl
 //
@@ -17,15 +19,36 @@ import 'package:Audioverse/features/content/models/models.dart';
 class HistoryRepositoryImpl implements HistoryRepository {
   final Dio _dio;
   final TokenStorage _tokenStorage;
+  final CacheManager _cache;
+  final Box _box = Hive.box<int>('local_playback_positions');
 
-  HistoryRepositoryImpl({required Dio dio, required TokenStorage tokenStorage})
+  HistoryRepositoryImpl({required Dio dio, required TokenStorage tokenStorage,
+    required CacheManager cache
+  })
       : _dio = dio,
-        _tokenStorage = tokenStorage;
+        _tokenStorage = tokenStorage,
+        _cache = cache;
 
   // ── GET /history ────────────────────────────────────────────────────────
   @override
   Future<PaginatedHistory> getHistory({required int page}) async {
     try {
+
+      final token = await _tokenStorage.getAccessToken();
+      if (token == null || token.isEmpty) {
+        return PaginatedHistory(
+          items: const [],
+          meta: PaginationMeta(
+            total: 0,
+            page: page,
+            limit: 10,
+            totalPages: 0,
+            hasNextPage: false,
+            hasPrevPage: false,
+          ),
+        );
+      }
+
       final response = await _dio.get(
         '/history',
         queryParameters: {'page': page, 'limit': 10},
@@ -73,6 +96,11 @@ class HistoryRepositoryImpl implements HistoryRepository {
     required double progressPercent,
     bool? completed,
   }) async {
+    await _box.put(contentId, positionSec);
+
+    final token = await _tokenStorage.getAccessToken();
+    if (token == null || token.isEmpty) return;
+
     try {
       final data = <String, dynamic>{
         'positionSec': positionSec,
@@ -91,6 +119,12 @@ class HistoryRepositoryImpl implements HistoryRepository {
 
   @override
   Future<int> getPositionSec({required String contentId}) async {
+
+    final pos = await _box.get(contentId);
+
+    final token = await _tokenStorage.getAccessToken();
+    if (token == null || token.isEmpty) return pos ?? 0;
+
     try {
       final response = await _dio.get('/history/$contentId');
       AppLogger.d(response.data);
@@ -104,6 +138,12 @@ class HistoryRepositoryImpl implements HistoryRepository {
   // ── DELETE /history/:contentId ────────────────────────────────────────────
   @override
   Future<void> deleteHistory(String contentId) async {
+
+    await _box.delete(contentId);
+
+    final token = await _tokenStorage.getAccessToken();
+    if (token == null || token.isEmpty) return;
+
     try {
       await _dio.delete('/history/$contentId');
     } on DioException catch (e) {

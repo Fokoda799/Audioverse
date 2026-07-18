@@ -1,12 +1,11 @@
-﻿import 'package:Audioverse/core/utils/app_logger.dart';
-import 'package:Audioverse/core/widgets/app_dialog.dart';
+﻿import 'package:Audioverse/core/widgets/app_dialog.dart';
 import 'package:Audioverse/core/widgets/app_snack_bar.dart';
 import 'package:Audioverse/features/auth/auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:Audioverse/core/utils/validators.dart';
 import 'package:Audioverse/core/theme/theme.dart';
-import 'package:Audioverse/features/settings/settings_provider.dart';
+import 'package:Audioverse/features/settings/providers/settings_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

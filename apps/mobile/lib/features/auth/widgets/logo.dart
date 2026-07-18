@@ -11,7 +11,7 @@ Widget buildLogo(bool isDark) {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: const LinearGradient(
-            colors: [AppColors.primaryLight, AppColors.primaryDark],
+            colors: [AppColors.primaryLight, AppColors.darkSurface],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -23,10 +23,8 @@ Widget buildLogo(bool isDark) {
             ),
           ],
         ),
-        child: const Icon(
-          Icons.headphones_rounded,
-          color: Colors.white,
-          size: 38,
+        child: Image.asset(
+          "assets/icons/app_icon_foreground.png",
         ),
       ),
       const SizedBox(height: AppSpacing.md),

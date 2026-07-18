@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/content/models/models.dart';
 import 'package:Audioverse/features/personalization/repositories/favorites_repository.dart';
+import 'package:hive_ce/hive.dart';
 
 // FavoritesRepositoryImpl
 //
@@ -14,6 +15,7 @@ import 'package:Audioverse/features/personalization/repositories/favorites_repos
 class FavoritesRepositoryImpl implements FavoritesRepository {
   final Dio _dio;
   final TokenStorage _tokenStorage;
+  final Box _box = Hive.box<String>('favorites');
 
   FavoritesRepositoryImpl({required Dio dio, required TokenStorage tokenStorage})
       : _dio = dio,
@@ -24,7 +26,11 @@ class FavoritesRepositoryImpl implements FavoritesRepository {
   Future<Set<String>> getFavoriteIds() async {
     try {
       final token = await _tokenStorage.getAccessToken();
-      if (token == null || token.isEmpty) return <String>{};
+      if (token == null || token.isEmpty) {
+        final ids = _box.toMap().cast<dynamic, String>();;
+
+        return ids.values.toSet();
+      }
 
       final response = await _dio.get('/favorites/ids');
       final data = response.data as List<dynamic>;

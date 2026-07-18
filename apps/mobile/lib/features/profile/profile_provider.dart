@@ -88,6 +88,13 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
+  void reset() {
+    _profile = null;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   void _setLoading()        { _isLoading = true;  _errorMessage = null; notifyListeners(); }
   void _stopLoading()       { _isLoading = false; notifyListeners(); }
   void _setError(Object e)  { _errorMessage = e.toString().replaceAll('Exception: ', ''); }

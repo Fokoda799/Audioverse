@@ -1,7 +1,9 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:Audioverse/core/auth/google.dart';
+import 'package:Audioverse/core/general/downloads_manager.dart';
+import 'package:Audioverse/core/general/logout_data_cleaner.dart';
+import 'package:Audioverse/core/general/sync_service.dart';
 import 'package:Audioverse/core/network/cach_manager.dart';
 import 'package:Audioverse/core/network/file_upload/storage_repository_impl.dart';
 import 'package:Audioverse/core/error/app_crash_reporter.dart';
@@ -14,11 +16,13 @@ import 'package:Audioverse/features/personalization/providers/history_provider.d
 import 'package:Audioverse/features/personalization/repositories/favorites_repository_impl.dart';
 import 'package:Audioverse/features/personalization/repositories/history_repository_impl.dart';
 import 'package:Audioverse/features/profile/profile.dart';
+import 'package:Audioverse/features/settings/models/download_model.dart';
+import 'package:Audioverse/features/settings/providers/downloads_provider.dart';
 import 'package:Audioverse/features/settings/settings.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'package:Audioverse/core/router/app_router.dart';
@@ -32,141 +36,160 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter/services.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: '.env');
+    try {
+      await dotenv.load(fileName: '.env');
+    } catch (e) {
+      debugPrint('Warning: .env file not found or failed to load: $e');
+    }
 
-  final sentryDsn = (dotenv.env['SENTRY_DSN'] ?? '').trim();
-  final crashReporter = AppCrashReporter(useSentry: sentryDsn.isNotEmpty);
+    final sentryDsn = (dotenv.env['SENTRY_DSN'] ?? '').trim();
+    final crashReporter = AppCrashReporter(useSentry: sentryDsn.isNotEmpty);
 
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-    crashReporter.reportFlutterError(details);
-  };
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      crashReporter.reportFlutterError(details);
+    };
 
-  PlatformDispatcher.instance.onError = (error, stackTrace) {
-    crashReporter.reportError(error, stackTrace, source: 'PlatformDispatcher');
-    return true;
-  };
+    PlatformDispatcher.instance.onError = (error, stackTrace) {
+      crashReporter.reportError(error, stackTrace, source: 'PlatformDispatcher');
+      return true;
+    };
 
-  ErrorWidget.builder = (details) {
-    crashReporter.reportFlutterError(details);
-    return AppErrorScreen(
-      title: 'Something went wrong',
-      message:
-          'The app hit an unexpected error. Please restart it and try again.',
-      details: details.exceptionAsString(),
-    );
-  };
+    ErrorWidget.builder = (details) {
+      crashReporter.reportFlutterError(details);
+      return AppErrorScreen(
+        title: 'Something went wrong',
+        message:
+            'The app hit an unexpected error. Please restart it and try again.',
+        details: details.exceptionAsString(),
+      );
+    };
 
-  if (sentryDsn.isNotEmpty) {
-    await SentryFlutter.init(
-      (options) {
-        options.dsn = sentryDsn;
-        options.sendDefaultPii = true;
-        options.debug = kDebugMode;
-        options.tracesSampleRate = 0.0;
-      },
-      appRunner: () async {
-        await runZonedGuarded(
-          () async {
-            await _bootstrapApp(crashReporter);
-          },
-          (error, stackTrace) {
-            crashReporter.reportError(
-              error,
-              stackTrace,
-              source: 'runZonedGuarded',
-            );
-          },
-        );
-      },
-    );
-    return;
-  }
-
-  await runZonedGuarded(
-    () async {
+    if (sentryDsn.isNotEmpty && !kDebugMode) {
+      await SentryFlutter.init(
+        (options) {
+          options.dsn = sentryDsn;
+          options.sendDefaultPii = true;
+          options.debug = kDebugMode;
+          options.tracesSampleRate = 0.0;
+        },
+        appRunner: () => _bootstrapApp(crashReporter),
+      );
+    } else {
       await _bootstrapApp(crashReporter);
-    },
-    (error, stackTrace) {
-      crashReporter.reportError(error, stackTrace, source: 'runZonedGuarded');
-    },
-  );
+    }
+  } catch (error, stackTrace) {
+    debugPrint('Critical error during startup: $error');
+    debugPrint('$stackTrace');
+  }
 }
 
 Future<void> _bootstrapApp(AppCrashReporter crashReporter) async {
-  // Optimize image loading: memory cache to 100 images
-  PaintingBinding.instance.imageCache.maximumSize = 100;
+  try {
+    // Optimize image loading: memory cache to 100 images
+    if (!kIsWeb) {
+      PaintingBinding.instance.imageCache.maximumSize = 100;
 
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarIconBrightness:
-          Brightness.light, // since your app is dark-themed
-      systemNavigationBarDividerColor: Colors.transparent,
-    ),
-  );
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarIconBrightness:
+              Brightness.light, // since your app is dark-themed
+          systemNavigationBarDividerColor: Colors.transparent,
+        ),
+      );
+    }
 
-  await Hive.initFlutter();
-  await Hive.openBox('categories_cache');
-  await Hive.openBox('content_cache');
-  await Hive.openBox('recent_searches');
+    await Hive.initFlutter();
+    
+    // Register Hive adapters
+    Hive.registerAdapter(DownloadItemAdapter());
+    Hive.registerAdapter(DownloadStatusAdapter());
 
-  await AudioPlayerService.instance.init();
+    await Hive.openBox('categories_cache');
+    await Hive.openBox('content_cache');
+    await Hive.openBox('recent_searches');
+    await Hive.openBox<DownloadItem>('downloads');
+    await Hive.openBox<int>('local_playback_positions');
+    await Hive.openBox<String>('favorites');
 
-  final tokenStorage = TokenStorage();
-  final dioClient = DioClient(tokenStorage: tokenStorage);
-  final cache = CacheManager();
-  final googleAuth = GoogleAuthService();
+    try {
+      await AudioPlayerService.instance.init();
+    } catch (e, st) {
+      crashReporter.reportError(e, st, source: 'AudioPlayerService.init');
+    }
 
-  final authRepo = AuthRepositoryImpl(
-    dio: dioClient.dio,
-    tokenStorage: tokenStorage,
-  );
-  final profileRepo = ProfileRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
-  final favoriteRepo = FavoritesRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
-  final historyRepo = HistoryRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
-  final storageRepo = StorageRepositoryImpl(dio: dioClient.dio);
-  final settingsRepo = SettingsRepositoryImpl(dio: dioClient.dio);
+    final tokenStorage = TokenStorage();
+    final dioClient = DioClient(tokenStorage: tokenStorage);
+    final cache = CacheManager();
+    final googleAuth = GoogleAuthService();
 
-  AudioPlayerService.instance.attachHistoryRepository(historyRepo);
+    final authRepo = AuthRepositoryImpl(
+      dio: dioClient.dio,
+      tokenStorage: tokenStorage,
+    );
+    final profileRepo = ProfileRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
+    final favoriteRepo = FavoritesRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage);
+    final historyRepo = HistoryRepositoryImpl(dio: dioClient.dio, tokenStorage: tokenStorage, cache: cache);
+    final storageRepo = StorageRepositoryImpl(dio: dioClient.dio);
+    final settingsRepo = SettingsRepositoryImpl(dio: dioClient.dio);
+    final ContentRepository contentRepo = ContentRepositoryImpl(
+      dio: dioClient.dio,
+      cache: cache,
+    );
 
-  // ✅ Keep a reference to contentRepo so we can ALSO put it directly
-  // into the widget tree below — not just hand it to other providers.
-  final ContentRepository contentRepo = ContentRepositoryImpl(
-    dio: dioClient.dio,
-    cache: cache,
-  );
+    AudioPlayerService.instance.attachHistoryRepository(historyRepo);
 
-  final authProvider = AuthProvider(repository: authRepo, googleAuth: googleAuth);
-  crashReporter.attachAuthProvider(authProvider);
-  final profileProvider = ProfileProvider(
-    repository: profileRepo,
-    storageRepository: storageRepo,
-  );
-  final homeProvider = HomeProvider(repository: contentRepo);
-  final contentListProvider = ContentListProvider(repository: contentRepo);
-  final categoryProvider = CategoriesProvider(repository: contentRepo);
-  final searchProvider = SearchProvider(repository: contentRepo, cache: cache);
-  final favoriteProvider = FavoritesProvider(repository: favoriteRepo);
-  final historyProvider = HistoryProvider(repository: historyRepo);
-  final settingsProvider = SettingsProvider(repository: settingsRepo);
+    final downloadManager = DownloadManager(contentRepository: contentRepo, dio: dioClient.dio);
+    final syncService = SyncService(historyRepository: historyRepo);
 
-  runApp(
-    AudioVerseApp(
-      contentRepo: contentRepo,
-      authProvider: authProvider,
-      profileProvider: profileProvider,
-      homeProvider: homeProvider,
-      contentListProvider: contentListProvider,
-      categoryProvider: categoryProvider,
-      searchProvider: searchProvider,
-      favoriteProvider: favoriteProvider,
-      historyProvider: historyProvider,
-      settingsProvider: settingsProvider,
-    ),
-  );
+    final authProvider = AuthProvider(repository: authRepo, googleAuth: googleAuth,);
+    crashReporter.attachAuthProvider(authProvider);
+    final profileProvider = ProfileProvider(
+      repository: profileRepo,
+      storageRepository: storageRepo,
+    );
+    final homeProvider = HomeProvider(repository: contentRepo);
+    final contentListProvider = ContentListProvider(repository: contentRepo);
+    final categoryProvider = CategoriesProvider(repository: contentRepo);
+    final searchProvider = SearchProvider(repository: contentRepo, cache: cache);
+    final favoriteProvider = FavoritesProvider(repository: favoriteRepo);
+    final historyProvider = HistoryProvider(repository: historyRepo);
+    final settingsProvider = SettingsProvider(repository: settingsRepo);
+    final downloadProvider = DownloadProvider(downloadManager: downloadManager);
+    final logoutDataCleaner = LogoutDataCleaner(downloadManager: downloadManager);
+
+    authProvider.addListener(() {
+      if (authProvider.currentUser != null) {
+        syncService.syncGuestDataToServer();
+      }
+    });
+
+    runApp(
+      AudioVerseApp(
+        contentRepo: contentRepo,
+        authProvider: authProvider,
+        profileProvider: profileProvider,
+        homeProvider: homeProvider,
+        contentListProvider: contentListProvider,
+        categoryProvider: categoryProvider,
+        searchProvider: searchProvider,
+        favoriteProvider: favoriteProvider,
+        historyProvider: historyProvider,
+        settingsProvider: settingsProvider,
+        downloadProvider: downloadProvider,
+        logoutDataCleaner: logoutDataCleaner,
+
+      ),
+    );
+  } catch (error, stackTrace) {
+    crashReporter.reportError(error, stackTrace, source: '_bootstrapApp');
+    // Still try to run the app to show the error widget if possible
+    rethrow;
+  }
 }
 
 class AudioVerseApp extends StatefulWidget {
@@ -180,6 +203,8 @@ class AudioVerseApp extends StatefulWidget {
   final FavoritesProvider favoriteProvider;
   final HistoryProvider historyProvider;
   final SettingsProvider settingsProvider;
+  final DownloadProvider downloadProvider;
+  final LogoutDataCleaner logoutDataCleaner;
 
   const AudioVerseApp({
     super.key,
@@ -193,6 +218,8 @@ class AudioVerseApp extends StatefulWidget {
     required this.favoriteProvider,
     required this.historyProvider,
     required this.settingsProvider,
+    required this.downloadProvider,
+    required this.logoutDataCleaner,
   });
 
   @override
@@ -226,6 +253,8 @@ class _AudioVerseAppState extends State<AudioVerseApp> {
         ChangeNotifierProvider.value(value: widget.favoriteProvider),
         ChangeNotifierProvider.value(value: widget.historyProvider),
         ChangeNotifierProvider.value(value: widget.settingsProvider),
+        ChangeNotifierProvider.value(value: widget.downloadProvider),
+        ChangeNotifierProvider.value(value: widget.logoutDataCleaner),
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,

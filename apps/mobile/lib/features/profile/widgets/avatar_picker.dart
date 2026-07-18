@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -175,6 +176,13 @@ class AvatarPicker extends StatelessWidget {
     }
 
     if (currentAvatarUrl != null) {
+      if (kIsWeb) {
+        return Image.network(
+          currentAvatarUrl!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholderIcon(),
+        );
+      }
       return CachedNetworkImage(
         imageUrl: currentAvatarUrl!,
         fit: BoxFit.cover,

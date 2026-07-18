@@ -1,4 +1,3 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class GoogleAuthService {
@@ -8,8 +7,7 @@ class GoogleAuthService {
   Future<void> _ensureInitialized() async {
     if (_initialized) return;
     await _googleSignIn.initialize(
-      // Only needed if you don't set it via platform config (Android/iOS)
-      serverClientId: dotenv.env['CLIENT_ID'],
+      serverClientId: "501882629900-2j61ngt5h1vfqka8r06dllc0iornn7i2.apps.googleusercontent.com"
     );
     _initialized = true;
   }

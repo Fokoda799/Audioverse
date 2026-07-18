@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.11.5
+  sdk: '>=3.0.0 <4.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -43,8 +43,6 @@ dependencies:
   logger: ^2.0.0
   shared_preferences: ^2.2.0
   shared_preferences_web: ^2.4.3
-  hive: ^2.2.3
-  hive_flutter: ^1.1.0
   cached_network_image: ^3.4.0
   shimmer: ^3.0.0
   just_audio: ^0.9.40
@@ -58,10 +56,17 @@ dependencies:
   flutter_blurhash: ^0.8.2
   sentry_flutter: ^8.14.2
   google_sign_in: ^7.2.0
+  path_provider: ^2.1.6
+  flutter_launcher_icons: ^0.14.4
+  hive_ce: ^2.19.3
+  hive_ce_flutter: ^2.3.4
+  flutter_native_splash: ^2.4.4
 
+  flutter_cache_manager: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  build_runner: ^2.15.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -70,6 +75,15 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   change_app_package_name: ^1.5.0
+  hive_ce_generator: ^1.11.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false # add true later when you tackle iOS
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#0F1115" # swap for your actual AppColors.darkBackground hex
+  adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -86,6 +100,14 @@ flutter:
   assets:
     - assets/icons/
     - .env
+
+
+flutter_native_splash:
+  color: "#0F1115" # AppColors.darkBackground
+  image: assets/icons/app_icon_foreground.png
+  android_12:
+    color: "#0F1115"
+    image: assets/icons/app_icon_foreground.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

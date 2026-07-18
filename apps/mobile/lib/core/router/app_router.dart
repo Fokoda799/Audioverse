@@ -3,7 +3,8 @@ import 'package:Audioverse/features/content/providers/content_detail_provider.da
 import 'package:Audioverse/features/content/screens/content_search_screen.dart';
 import 'package:Audioverse/features/content/screens/player_screen.dart';
 import 'package:Audioverse/features/personalization/library_screen.dart';
-import 'package:Audioverse/features/settings/settings_screen.dart';
+import 'package:Audioverse/features/settings/screens/downloads_screen.dart';
+import 'package:Audioverse/features/settings/screens/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Audioverse/features/player/screen_with_miniplayer.dart';
@@ -12,7 +13,6 @@ import 'package:Audioverse/features/auth/auth_provider.dart';
 import 'package:Audioverse/features/auth/screens/login_screen.dart';
 import 'package:Audioverse/features/auth/screens/register_screen.dart';
 import 'package:Audioverse/features/auth/screens/password_screen.dart';
-import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/profile/profile.dart';
 import 'package:Audioverse/features/shell/main_scaffold.dart';
 import 'package:Audioverse/features/home/home_screen.dart';
@@ -58,8 +58,6 @@ class AppRouter {
         AppRoutes.forgotPassword,
       ].contains(state.matchedLocation);
       final isAnonymous = !isLoggedIn && !isGuest;
-
-      AppLogger.d("Is logged in : $isLoggedIn");
 
       // Not logged in and trying to access a protected screen → login
       if (isAnonymous && !isOnAuthScreen) return AppRoutes.login;
@@ -133,6 +131,14 @@ class AppRouter {
         pageBuilder: (context, state) => _fadePage(
           state: state,
           child: const SettingsScreen(),
+        ),
+      ),
+
+      GoRoute(
+        path: '/general',
+        pageBuilder: (context, state) => _fadePage(
+          state: state,
+          child: const DownloadsScreen(),
         ),
       ),
 

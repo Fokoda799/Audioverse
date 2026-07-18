@@ -1,4 +1,4 @@
-﻿// Personalization Models
+// Personalization Models
 // Pure Dart data classes â€” no Flutter, no Dio, no external dependencies.
 // These are the shapes of data that flow through the personalization feature.
 
@@ -23,5 +23,5 @@ class Personalization {
   };
 
   @override
-  String toString() => 'Personalization(id: \)';
+  String toString() => 'Personalization(id: )';
 }

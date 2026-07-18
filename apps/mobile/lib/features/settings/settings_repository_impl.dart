@@ -1,6 +1,6 @@
 ﻿// import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:dio/dio.dart';
-import 'package:Audioverse/features/settings/settings_models.dart';
+import 'package:Audioverse/features/settings/models/settings_models.dart';
 import 'package:Audioverse/features/settings/settings_repository.dart';
 
 // Settings Repository Implementation

@@ -1,5 +1,6 @@
-﻿import 'package:Audioverse/features/personalization/providers/history_provider.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -107,17 +108,16 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _formEverSubmitted = true);
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    // context.read() — we want to call a method, not subscribe to rebuilds.
-    // The provider calls notifyListeners() internally, which triggers
-    // rebuilds in build() where we use context.watch().
-    await context.read<AuthProvider>().login(
+    final auth = context.read<AuthProvider>();
+
+    await auth.login(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
 
-    if (!mounted) return;
-
-    await context.read<HistoryProvider>().loadContinueListening();await context.read<HistoryProvider>().loadContinueListening();
+    if (auth.isLoggedIn && mounted) {
+      context.go('/home');
+    }
   }
 
   @override
@@ -132,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen>
     // Derived from provider state — no local _isLoading needed
     final canSubmit = _emailValid && _passwordValid && !auth.isLoading;
 
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor:
       isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: Stack(
@@ -187,21 +187,32 @@ class _LoginScreenState extends State<LoginScreen>
             child: Align(
               alignment: Alignment.topRight,
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: AppButton(
-                  label: "Skip for now",
-                  variant: AppButtonVariant.ghost,
-                  width: 100.0,
-                  onPressed: () {
-                    auth.setGuest();
-                    context.go("/home");
-                  }
+                    label: "Skip for now",
+                    variant: AppButtonVariant.ghost,
+                    width: 100.0,
+                    onPressed: () {
+                      auth.setGuest();
+                      context.go("/home");
+                    }
                 ),
               ),
             ),
           ),
         ],
       ),
+    );
+
+    if (kIsWeb) return scaffold;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+      ),
+      child: scaffold,
     );
   }
 
@@ -265,22 +276,22 @@ class _LoginScreenState extends State<LoginScreen>
               onFieldSubmitted: (_) => _handleLogin(),
             ),
 
-            const SizedBox(height: AppSpacing.sm),
-
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: widget.onForgotPassword,
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text('Forgot password?',
-                    style: AppTextStyles.bodyMedium(AppColors.primary)),
-              ),
-            ),
+            // const SizedBox(height: AppSpacing.sm),
+            //
+            // Align(
+            //   alignment: Alignment.centerRight,
+            //   child: TextButton(
+            //     onPressed: widget.onForgotPassword,
+            //     style: TextButton.styleFrom(
+            //       padding: const EdgeInsets.symmetric(
+            //           horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+            //       minimumSize: Size.zero,
+            //       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            //     ),
+            //     child: Text('Forgot password?',
+            //         style: AppTextStyles.bodyMedium(AppColors.primary)),
+            //   ),
+            // ),
 
             const SizedBox(height: AppSpacing.md),
 
@@ -315,7 +326,6 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildSocialButtons(bool isDark, BuildContext context) {
-
     final auth = context.read<AuthProvider>();
 
     return Row(
@@ -323,22 +333,20 @@ class _LoginScreenState extends State<LoginScreen>
       children: [
         _SocialButton(
           tooltip: 'Sign in with Google',
-          icon: Image.network(
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png',
-            width: 24, height: 24,
-            errorBuilder: (_, __, ___) => const Icon(
-                Icons.g_mobiledata_rounded, size: 30, color: AppColors.primary),
+          icon: Image.asset(
+            'assets/icons/google.png',
+            width: 24,
+            height: 24,
+            errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata_rounded,
+                size: 30, color: AppColors.primary),
           ),
           isDark: isDark,
-          onTap: () { /* placeholder */ },
-        ),
-        const SizedBox(width: AppSpacing.lg),
-        _SocialButton(
-          tooltip: 'Sign in with Apple',
-          icon: Icon(Icons.apple,
-              color: isDark ? Colors.white : Colors.black, size: 34),
-          isDark: isDark,
-          onTap: () => auth.googleSignIn(),
+          onTap: () async {
+            await auth.googleSignIn();
+            if (auth.isLoggedIn && context.mounted) {
+              context.go('/home');
+            }
+          },
         ),
       ],
     );
@@ -441,12 +449,13 @@ class _SocialButton extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          width: 56, height: 56,
+          width: 250, height: 56,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
+            shape: BoxShape.rectangle,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
             border: Border.all(
               color: isDark ? AppColors.darkBorder : AppColors.lightBorder,

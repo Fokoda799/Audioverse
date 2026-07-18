@@ -10,11 +10,15 @@ class HomeProvider extends ChangeNotifier {
       : _repository = repository;
 
   bool _isLoadingFeatured = false;
+  bool _isLoadingAudiobooks = false;
   List<Content> _featured = [];
+  List<Content> _audiobooks = [];
   String? _errorMessage;
 
   bool get isLoadingFeatured => _isLoadingFeatured;
+  bool get isLoadingAudiobooks => _isLoadingAudiobooks;
   List<Content> get featured => _featured;
+  List<Content> get audiobooks => _audiobooks;
   String? get errorMessage => _errorMessage;
 
   // ── Load everything the Home screen needs on first open ────────────────
@@ -25,6 +29,7 @@ class HomeProvider extends ChangeNotifier {
   Future<void> loadHome() async {
     await Future.wait([
       _loadFeatured(),
+      _loadAudiobooks(),
     ]);
   }
 
@@ -45,12 +50,28 @@ class HomeProvider extends ChangeNotifier {
       // rather than requiring a dedicated backend endpoint.
       final result = await _repository.getFeatured();
       _featured = result;
-      _errorMessage = null;
     } catch (e, st) {
       AppLogger.e('Failed to load featured content', error: e, stackTrace: st);
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
       _isLoadingFeatured = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadAudiobooks() async {
+    _isLoadingAudiobooks = true;
+    notifyListeners();
+
+    try {
+      final result = await _repository.getContent(
+        filters: const ContentFilters(contentType: 'AUDIOBOOK', limit: 10),
+      );
+      _audiobooks = result.items;
+    } catch (e, st) {
+      AppLogger.e('Failed to load audiobooks', error: e, stackTrace: st);
+    } finally {
+      _isLoadingAudiobooks = false;
       notifyListeners();
     }
   }

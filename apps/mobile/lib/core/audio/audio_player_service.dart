@@ -6,6 +6,7 @@ import 'package:Audioverse/features/content/models/content_models.dart';
 import 'package:Audioverse/features/personalization/repositories/history_repository.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:Audioverse/core/utils/app_logger.dart';
@@ -75,17 +76,59 @@ class AudioPlayerService {
       return;
     }
 
-    await JustAudioBackground.init(
-      androidNotificationChannelId: 'com.example.mobile.audio',
-      androidNotificationChannelName: 'AudioVerse Playback',
-      androidNotificationOngoing: false,
-      androidStopForegroundOnPause: false,
-    );
+    if (!kIsWeb) {
+      await JustAudioBackground.init(
+        androidNotificationChannelId: 'com.example.mobile.audio',
+        androidNotificationChannelName: 'AudioVerse Playback',
+        androidNotificationOngoing: false,
+        androidStopForegroundOnPause: false,
+      );
+    }
 
     _player = AudioPlayer();
 
-    final session = await AudioSession.instance;
-    await session.configure(const AudioSessionConfiguration.music());
+    if (!kIsWeb) {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+
+      // ── Audio focus / interruptions ────────────────────────────────────────
+      // Phone calls and other apps' audio fire interruption events; losing
+      // a headphone connection fires "becoming noisy". just_audio_background
+      // already gives us lock-screen controls — this is the other half:
+      // reacting correctly when something else wants the speaker.
+      session.interruptionEventStream.listen((event) {
+        if (event.begin) {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              _player.setVolume(0.3);
+              break;
+            case AudioInterruptionType.pause:
+            case AudioInterruptionType.unknown:
+              _resumeAfterInterruption = _player.playing;
+              _player.pause();
+              break;
+          }
+        } else {
+          switch (event.type) {
+            case AudioInterruptionType.duck:
+              _player.setVolume(1.0);
+              break;
+            case AudioInterruptionType.pause:
+              if (_resumeAfterInterruption) {
+                _resumeAfterInterruption = false;
+                _player.play();
+              }
+              break;
+            case AudioInterruptionType.unknown:
+              break;
+          }
+        }
+      });
+
+      // Headphones unplugged / Bluetooth disconnected — pause rather than
+      // suddenly blasting through the phone speaker.
+      session.becomingNoisyEventStream.listen((_) => _player.pause());
+    }
 
     _player.playbackEventStream.listen(
           (_) {},
@@ -93,44 +136,6 @@ class AudioPlayerService {
         AppLogger.e('Playback stream error', error: e, stackTrace: st);
       },
     );
-
-    // ── Audio focus / interruptions ────────────────────────────────────────
-    // Phone calls and other apps' audio fire interruption events; losing
-    // a headphone connection fires "becoming noisy". just_audio_background
-    // already gives us lock-screen controls — this is the other half:
-    // reacting correctly when something else wants the speaker.
-    session.interruptionEventStream.listen((event) {
-      if (event.begin) {
-        switch (event.type) {
-          case AudioInterruptionType.duck:
-            _player.setVolume(0.3);
-            break;
-          case AudioInterruptionType.pause:
-          case AudioInterruptionType.unknown:
-            _resumeAfterInterruption = _player.playing;
-            _player.pause();
-            break;
-        }
-      } else {
-        switch (event.type) {
-          case AudioInterruptionType.duck:
-            _player.setVolume(1.0);
-            break;
-          case AudioInterruptionType.pause:
-            if (_resumeAfterInterruption) {
-              _resumeAfterInterruption = false;
-              _player.play();
-            }
-            break;
-          case AudioInterruptionType.unknown:
-            break;
-        }
-      }
-    });
-
-    // Headphones unplugged / Bluetooth disconnected — pause rather than
-    // suddenly blasting through the phone speaker.
-    session.becomingNoisyEventStream.listen((_) => _player.pause());
 
     // Restore the last speed the user picked, before anything plays.
     final savedSpeed = await PlaybackPreferences.getSpeed();
@@ -153,13 +158,22 @@ class AudioPlayerService {
     _currentContent = content;
     _historySyncTimer?.cancel();
 
-    final palette = await PaletteGenerator.fromImageProvider(
-      NetworkImage(content.coverUrl),
-    );
-    _primaryColor = palette.dominantColor?.color ?? AppColors.darkBackground;
-    _secondaryColor = palette.vibrantColor?.color ??
-        palette.darkMutedColor?.color ??
-        AppColors.darkBackground;
+    try {
+      if (!kIsWeb) {
+        final palette = await PaletteGenerator.fromImageProvider(
+          NetworkImage(content.coverUrl),
+        ).timeout(const Duration(seconds: 2));
+        _primaryColor = palette.dominantColor?.color ?? AppColors.darkBackground;
+        _secondaryColor = palette.vibrantColor?.color ??
+            palette.darkMutedColor?.color ??
+            AppColors.darkBackground;
+      }
+    } catch (e) {
+      AppLogger.w('Failed to generate palette (likely CORS on Web): $e');
+      _primaryColor = AppColors.darkBackground;
+      _secondaryColor = AppColors.darkBackground;
+    }
+
     themeVersion.value++;
 
     try {

@@ -4,7 +4,7 @@
 // Usage from another feature:
 //   import 'package:Audioverse/features/settings/settings.dart';
 
-export 'settings_models.dart';
+export 'models/settings_models.dart';
 export 'settings_repository.dart';
 export 'settings_repository_impl.dart';
-export 'settings_provider.dart';
+export 'providers/settings_provider.dart';

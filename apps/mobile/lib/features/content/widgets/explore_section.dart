@@ -61,21 +61,25 @@ class _ExploreSectionState extends State<ExploreSection> {
         : AppColors.textSecondaryLight;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: AppSpacing.xl),
           Consumer<SearchProvider>(
             builder: (context, provider, _) {
               return provider.recentSearches.isNotEmpty
-                  ? _RecentSearchChips(isDark: widget.isDark, textSecondary: textSecondary)
-                  : const SizedBox.shrink();
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _RecentSearchChips(isDark: widget.isDark, textSecondary: textSecondary),
+                      const SizedBox(height: AppSpacing.xl),
+                    ],
+                  )
+                : const SizedBox.shrink();
             },
           ),
           _TrendingChips(isDark: widget.isDark, textSecondary: textSecondary),
           const SizedBox(height: AppSpacing.xl),
-          _CategoryGridSection(isDark: widget.isDark, textSecondary: textSecondary),
         ],
       ),
     );
@@ -164,8 +168,7 @@ class _SuggestionChip extends StatelessWidget {
     required this.label,
     required this.isDark,
     required this.onTap,
-    this.type = SuggestionChipType.trending,
-    this.onRemove,
+    this.type = SuggestionChipType.trending, this.onRemove,
   });
 
   final String label;
@@ -396,7 +399,7 @@ class _CategoryGridSkeleton extends StatelessWidget {
         childAspectRatio: 2.4,
       ),
       itemCount: 6, // matches the 5 real categories + 1 buffer row
-      itemBuilder: (_, _) => const ShimmerBox(borderRadius: AppRadius.md),
+      itemBuilder: (_, __) => const ShimmerBox(borderRadius: AppRadius.md),
     );
   }
 }

@@ -172,7 +172,7 @@ class _RelatedRowSkeleton extends StatelessWidget {
               aspectRatio: 1,
               child: ShimmerBox(borderRadius: AppRadius.md),
             ),
-            const SizedBox(height: AppSpacing.xs),
+            SizedBox(height: AppSpacing.xs),
             SizedBox(
               height: 14,
               child: ShimmerBox(borderRadius: AppRadius.sm),

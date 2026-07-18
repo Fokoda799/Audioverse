@@ -1,7 +1,7 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:Audioverse/core/utils/app_logger.dart';
-import '../models/models.dart';
-import '../content_repository.dart';
+import 'package:Audioverse/features/content/models/models.dart';
+import 'package:Audioverse/features/content/content_repository.dart';
 
 class ContentListProvider extends ChangeNotifier {
   final ContentRepository _repository;

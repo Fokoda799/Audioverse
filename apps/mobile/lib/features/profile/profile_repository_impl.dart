@@ -1,5 +1,4 @@
-﻿import 'package:Audioverse/core/network/network.dart';
-import 'package:Audioverse/core/utils/app_logger.dart';
+import 'package:Audioverse/core/network/network.dart';
 import 'package:dio/dio.dart';
 import 'package:Audioverse/features/profile/profile_models.dart';
 import 'package:Audioverse/features/profile/profile_repository.dart';

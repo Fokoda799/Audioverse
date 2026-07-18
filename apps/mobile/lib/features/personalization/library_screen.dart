@@ -1,5 +1,9 @@
 import 'package:Audioverse/core/theme/theme.dart';
+import 'package:Audioverse/features/auth/auth.dart';
 import 'package:Audioverse/features/personalization/personalization.dart';
+import 'package:Audioverse/features/settings/models/download_model.dart';
+import 'package:Audioverse/features/settings/providers/downloads_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +12,7 @@ import 'package:Audioverse/features/home/widgets/content_grid.dart';      // Con
 import 'package:Audioverse/features/home/widgets/empty_state.dart';        // EmptyState
 import 'package:Audioverse/features/home/widgets/shimmer_box.dart';
 import 'package:Audioverse/features/personalization/providers/history_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -23,7 +28,7 @@ class _LibraryScreenState extends State<LibraryScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -34,6 +39,8 @@ class _LibraryScreenState extends State<LibraryScreen>
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
@@ -54,10 +61,10 @@ class _LibraryScreenState extends State<LibraryScreen>
           unselectedLabelStyle:
           AppTextStyles.labelLarge(AppColors.textSecondaryDark),
           dividerColor: AppColors.darkBorder,
-          tabs: const [
-            Tab(text: 'Continue'),
-            Tab(text: 'History'),
-            Tab(text: 'Favorites'),
+          tabs: [
+            const Tab(text: 'Continue'),
+            const Tab(text: 'History'),
+            if (!auth.isGuest) const Tab(text: 'Favorites'),
           ],
         ),
       ),
@@ -67,6 +74,7 @@ class _LibraryScreenState extends State<LibraryScreen>
           _ContinueListeningTab(),
           _HistoryTab(),
           _FavoritesTab(),
+          _DownloadsTab(),
         ],
       ),
     );
@@ -336,6 +344,171 @@ class _FavoritesTabState extends State<_FavoritesTab> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TAB 4 — Downloads (offline items)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DownloadsTab extends StatelessWidget {
+  const _DownloadsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<DownloadProvider>(
+      builder: (context, provider, _) {
+        final downloads = provider.downloads;
+
+        if (downloads.isEmpty) {
+          return _scrollableEmpty(
+            title: 'No general yet',
+            message: 'Audiobooks you download for offline listening will appear here.',
+            icon: Icons.download_rounded,
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
+          itemCount: downloads.length,
+          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+          itemBuilder: (context, index) {
+            final item = downloads[index];
+            return _DownloadCard(item: item);
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DownloadCard extends StatelessWidget {
+  const _DownloadCard({required this.item});
+
+  final DownloadItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.darkCard,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.darkBorder, width: 0.5),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Row(
+        children: [
+          // Thumbnail
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: CachedNetworkImage(
+              imageUrl: item.coverUrl,
+              width: 64,
+              height: 64,
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => Container(
+                width: 64,
+                height: 64,
+                color: AppColors.darkSurface,
+                child: const Icon(Icons.image_not_supported_outlined,
+                    color: AppColors.textSecondaryDark, size: 24),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  style: AppTextStyles.bodyMedium(AppColors.textPrimaryDark),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                if (item.status == DownloadStatus.downloading) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
+                    child: LinearProgressIndicator(
+                      value: item.progress,
+                      backgroundColor: AppColors.darkBorder,
+                      minHeight: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Downloading...',
+                    style: AppTextStyles.labelSmall(AppColors.primaryLight),
+                  ),
+                ] else if (item.status == DownloadStatus.failed) ...[
+                  Text(
+                    item.errorMessage ?? 'Download failed',
+                    style: AppTextStyles.labelSmall(AppColors.error),
+                  ),
+                ] else ...[
+                  Text(
+                    'Offline available',
+                    style: AppTextStyles.labelSmall(AppColors.accent),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          // Actions
+          IconButton(
+            icon: Icon(
+              item.status == DownloadStatus.downloading
+                  ? Icons.close_rounded
+                  : Icons.delete_outline_rounded,
+              color: AppColors.textSecondaryDark,
+              size: 20,
+            ),
+            onPressed: () {
+              final provider = context.read<DownloadProvider>();
+              if (item.status == DownloadStatus.downloading) {
+                provider.cancelDownload(item.contentId);
+              } else {
+                _showDeleteConfirm(context, provider);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirm(BuildContext context, DownloadProvider provider) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.darkSurface,
+        title: Text('Remove download?',
+            style: AppTextStyles.titleLarge(AppColors.textPrimaryDark)),
+        content: Text('This will remove the offline file from your device.',
+            style: AppTextStyles.bodyMedium(AppColors.textSecondaryDark)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel',
+                style: AppTextStyles.labelLarge(AppColors.textSecondaryDark)),
+          ),
+          TextButton(
+            onPressed: () {
+              provider.removeDownload(item.contentId);
+              Navigator.pop(ctx);
+            },
+            child: Text('Remove',
+                style: AppTextStyles.labelLarge(AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Shared card widget — used in Continue Listening + History
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -347,6 +520,19 @@ class _HistoryCard extends StatelessWidget {
 
   final History entry;
   final VoidCallback onTap;
+
+  Widget _buildPlaceholder() {
+    return Container(
+      width: 72,
+      height: 72,
+      color: AppColors.darkSurface,
+      child: const Icon(
+        Icons.image_not_supported_outlined,
+        color: AppColors.textSecondaryDark,
+        size: 24,
+      ),
+    );
+  }
 
   String _formatDuration(int seconds) {
     final m = seconds ~/ 60;
@@ -423,22 +609,22 @@ class _HistoryCard extends StatelessWidget {
               // Thumbnail
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.sm),
-                child: Image.network(
-                  content.coverUrl,
-                  width: 72,
-                  height: 72,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 72,
-                    height: 72,
-                    color: AppColors.darkSurface,
-                    child: const Icon(
-                      Icons.image_not_supported_outlined,
-                      color: AppColors.textSecondaryDark,
-                      size: 24,
-                    ),
-                  ),
-                ),
+                child: kIsWeb 
+                    ? Image.network(
+                        content.coverUrl,
+                        width: 72,
+                        height: 72,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildPlaceholder(),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: content.coverUrl,
+                        width: 72,
+                        height: 72,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => _buildPlaceholder(),
+                        errorWidget: (_, __, ___) => _buildPlaceholder(),
+                      ),
               ),
       
               const SizedBox(width: AppSpacing.sm),
@@ -549,19 +735,19 @@ class _HistoryTabSkeleton extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ShimmerBox(width: 72, height: 72, borderRadius: AppRadius.sm),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ShimmerBox(
                       width: double.infinity, height: 14, borderRadius: AppRadius.xs),
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(height: AppSpacing.xs),
                   ShimmerBox(width: 120, height: 12, borderRadius: AppRadius.xs),
-                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(height: AppSpacing.sm),
                   ShimmerBox(
                       width: double.infinity, height: 3, borderRadius: AppRadius.xs),
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(height: AppSpacing.xs),
                   ShimmerBox(width: 80, height: 11, borderRadius: AppRadius.xs),
                 ],
               ),

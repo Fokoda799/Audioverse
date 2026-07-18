@@ -169,6 +169,8 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                         child: _buildFormCard(isDark),
                       ),
 
+                      const SizedBox(height: AppSpacing.lg),
+
                       AnimatedSection(
                         slide: _slideAnims[3],
                         fade: _fadeAnims[3],

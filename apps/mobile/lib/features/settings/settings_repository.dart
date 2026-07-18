@@ -1,4 +1,4 @@
-﻿import 'package:Audioverse/features/settings/settings_models.dart';
+﻿import 'package:Audioverse/features/settings/models/settings_models.dart';
 
 // Settings Repository â€” abstract contract
 //

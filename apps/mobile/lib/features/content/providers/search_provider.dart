@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/features/content/models/models.dart';
 import 'package:Audioverse/features/content/content_repository.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 // Search Provider
 //

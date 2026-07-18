@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserStatus } from '@prisma/client';
+import { UserStatus, AuthProvider } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
@@ -26,7 +26,7 @@ export class AuthService {
   // ── Validate user (used by LocalStrategy) ──────────────────────────
   async validateUser(email: string, password: string) {
     const user = await this.prisma.users.findUnique({ where: { email } });
-    if (!user) return null;
+    if (!user || !user.passwordHash) return null;
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) return null;
@@ -70,9 +70,9 @@ export class AuthService {
     return { user, ...tokens, expires_in: 15 };
   }
 
-  async loginWithGoogle(idToken: string) {
+  async loginWithGoogle(tokenId: string) {
     const ticket = await this.googleClient.verifyIdToken({
-      idToken,
+      idToken: tokenId,
       audience: process.env.GOOGLE_WEB_CLIENT_ID,
     });
 
@@ -90,15 +90,20 @@ export class AuthService {
       user = await this.prisma.users.create({
         data: {
           email,
-          name,
+          name: name || 'Unknown',
           googleId,
-          provider: 'google',
+          provider: AuthProvider.GOOGLE,
           userProfile: { create: {avatarUrl: picture, displayName: name} }
         }
       });
     } else if (!user.googleId) {
       // existing email/password user linking their Google account
-      await this.prisma.users.update(user.id, { googleId, provider: 'google' });
+      await this.prisma.users.update({ 
+        where: {id: user.id},
+        data: {
+          googleId, provider: AuthProvider.GOOGLE
+        }
+      });
     }
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);

@@ -1,10 +1,11 @@
-import 'package:Audioverse/features/auth/auth.dart';
+// import 'package:Audioverse/features/auth/auth.dart';
 import 'package:Audioverse/features/personalization/providers/history_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:Audioverse/core/theme/theme.dart';
 import 'package:Audioverse/features/home/home_provider.dart';
 import 'package:Audioverse/features/home/widgets/featured_carousel.dart';
+import 'package:Audioverse/features/home/widgets/audiobook_row.dart';
 import 'package:Audioverse/features/home/widgets/category_chips.dart';
 import 'package:Audioverse/features/home/widgets/content_grid.dart';
 import 'package:Audioverse/features/home/widgets/continue_listening_row.dart';
@@ -17,7 +18,7 @@ import 'package:Audioverse/features/personalization/providers/favorites_provider
 // HomeScreen
 //
 // Composes every Home widget into one scrollable surface:
-//   SliverAppBar → Continue Listening → Featured Carousel → Category
+//   SliverAppBar → Continue Listening → Featured Carousel → Audiobooks → Category
 //   Chips → Content Grid
 //
 // All four pieces of state (HomeProvider, ContentListProvider,
@@ -35,17 +36,38 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  late final ScrollController _scrollController;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
     // Deferred to after the first frame — providers call notifyListeners()
     // during their load, and doing that synchronously inside initState()
     // (before the widget tree has fully built) throws in debug mode.
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadAll());
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.offset;
+
+    // Trigger load more when user is 200px from the bottom
+    if (currentScroll >= (maxScroll - 200)) {
+      context.read<ContentListProvider>().loadMore();
+    }
+  }
+
   Future<void> _loadAll() async {
-    final auth = context.read<AuthProvider>();
+    // final auth = context.read<AuthProvider>();
     final home = context.read<HomeProvider>();
     final categories = context.read<CategoriesProvider>();
     final contentList = context.read<ContentListProvider>();
@@ -106,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
           color: AppColors.primaryLight,
           backgroundColor: AppColors.darkSurface,
           child: CustomScrollView(
+            controller: _scrollController,
             // Always allow overscroll so RefreshIndicator can trigger even
             // when content doesn't fill the screen (e.g. on first load
             // before any data has arrived).
@@ -114,8 +137,10 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildAppBar(),
               _buildContinueListeningSection(),
               _buildFeaturedSection(),
+              _buildAudiobooksSection(),
               _buildCategoryChips(),
               _buildContentGrid(),
+              _buildLoadMoreIndicator(),
               // Bottom padding so the last grid row isn't flush against
               // the bottom nav bar.
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
@@ -123,6 +148,38 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // ── Load More Indicator ────────────────────────────────────────────────
+  Widget _buildLoadMoreIndicator() {
+    return Consumer<ContentListProvider>(
+      builder: (context, contentList, _) {
+        if (!contentList.isLoadingMore) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            0,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: AppSpacing.md,
+              crossAxisSpacing: AppSpacing.md,
+              childAspectRatio: 0.68, // Matches ContentGrid
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => const ContentCardSkeleton(),
+              childCount: 2, // Show one row of skeletons while loading
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -204,6 +261,38 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox.shrink() // nothing to feature — quietly skip
               else
                 FeaturedCarousel(items: home.featured),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Audiobooks Row ───────────────────────────────────────────────────────
+  Widget _buildAudiobooksSection() {
+    return Consumer<HomeProvider>(
+      builder: (context, home, _) {
+        if (!home.isLoadingAudiobooks && home.audiobooks.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+
+        return SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: AppSpacing.lg),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: Text(
+                  'Audiobooks',
+                  style: AppTextStyles.titleLarge(AppColors.textPrimaryDark),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AudiobookRow(
+                items: home.audiobooks,
+                isLoading: home.isLoadingAudiobooks,
+              ),
             ],
           ),
         );

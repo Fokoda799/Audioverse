@@ -17,6 +17,8 @@ android {
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
+        // Ensure compatibility with older plugins that might use deprecated language versions
+        freeCompilerArgs = freeCompilerArgs + "-Xskip-prerelease-check"
     }
 
     defaultConfig {
@@ -37,6 +39,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    implementation("androidx.core:core-ktx:1.12.0")
 }
 
 flutter {

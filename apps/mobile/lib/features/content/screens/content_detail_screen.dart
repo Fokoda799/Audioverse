@@ -3,7 +3,10 @@ import 'package:Audioverse/features/content/widgets/author_mini_card.dart';
 import 'package:Audioverse/features/content/widgets/expandable_descriiption.dart';
 import 'package:Audioverse/features/content/widgets/related_content_row.dart';
 import 'package:Audioverse/features/personalization/providers/favorites_provider.dart';
+import 'package:Audioverse/features/settings/models/download_model.dart';
+import 'package:Audioverse/features/settings/providers/downloads_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -13,6 +16,7 @@ import 'package:Audioverse/core/widgets/app_button.dart';
 import 'package:Audioverse/features/content/providers/content_detail_provider.dart';
 import 'package:Audioverse/features/home/widgets/empty_state.dart';
 import 'package:Audioverse/core/audio/audio_player_service.dart';
+import 'package:Audioverse/features/content/models/content_models.dart';
 
 class ContentDetailScreen extends StatelessWidget {
   const ContentDetailScreen({super.key, required this.contentId});
@@ -62,7 +66,7 @@ class _ContentDetailView extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xs),
                       if (content.author != null) _buildAuthorRow(content),
                       const SizedBox(height: AppSpacing.lg),
-                      _buildPlayButton(context, provider),
+                      _buildActionButtons(context, provider),
                       const SizedBox(height: AppSpacing.lg),
                       _buildMetaChips(content),
                       const SizedBox(height: AppSpacing.lg),
@@ -163,14 +167,14 @@ class _ContentDetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildTitleRow(content) {
+  Widget _buildTitleRow(Content content) {
     return Text(
       content.title,
       style: AppTextStyles.displayMedium(AppColors.textPrimaryDark),
     );
   }
 
-  Widget _buildAuthorRow(content) {
+  Widget _buildAuthorRow(Content content) {
     return Row(
       children: [
         if (content.author!.avatarUrl != null)
@@ -197,20 +201,55 @@ class _ContentDetailView extends StatelessWidget {
     );
   }
 
+  // ── Action buttons (Play + Download) ──────────────────────────────────
+  Widget _buildActionButtons(BuildContext context, ContentDetailProvider provider) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildPlayButton(context, provider),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        _DownloadButton(content: provider.content!),
+      ],
+    );
+  }
+
   // ── Play button ───────────────────────────────────────────────────────────
   // No audio player is wired up yet — this fetches the signed stream URL
   // and shows it as a snackbar placeholder. Replace the body of
   // _onPlayPressed with your real player integration when ready.
   Widget _buildPlayButton(BuildContext context, ContentDetailProvider provider) {
     final player = AudioPlayerService.instance;
+    final content = provider.content;
 
+    return StreamBuilder<PlayerState>(
+      stream: player.playerStateStream, // whatever your actual stream getter is called
+      builder: (context, snapshot) {
+        final isThisContent = content != null && player.isCurrentContent(content.id);
+        final isPlaying = isThisContent && player.isPlaying;
 
-    return AppButton(
-      label: 'Play',
-      icon: const Icon(Icons.play_arrow_rounded),
-      isLoading: provider.isLoadingStream,
-      width: double.infinity,
-      onPressed: () => _onPlayPressed(context, provider, player),
+        final String label;
+        final IconData icon;
+
+        if (!isThisContent) {
+          label = 'Play';
+          icon = Icons.play_arrow_rounded;
+        } else if (isPlaying) {
+          label = 'Pause';
+          icon = Icons.pause_rounded;
+        } else {
+          label = 'Resume';
+          icon = Icons.play_arrow_rounded;
+        }
+
+        return AppButton(
+          label: label,
+          icon: Icon(icon),
+          isLoading: provider.isLoadingStream,
+          width: double.infinity,
+          onPressed: () => _onPlayPressed(context, provider, player),
+        );
+      },
     );
   }
 
@@ -230,14 +269,26 @@ class _ContentDetailView extends StatelessWidget {
       return;
     }
 
-    // Different content (or nothing loaded yet) — fetch a fresh signed
-    // URL and start playback. getStreamUrl() always fetches fresh rather
-    // than reusing a cached URL, since signed URLs expire.
-    final url = await provider.getStreamUrl();
+    // ── Offline prioritization ──────────────────────────────────────────
+    // Check if we have this content downloaded. If so, play the local file
+    // immediately without hitting the network for a signed stream URL.
+    final downloads = context.read<DownloadProvider>();
+    final downloadItem = downloads.statusFor(content.id);
+    
+    String? playUrl;
+    if (downloadItem != null && downloadItem.status == DownloadStatus.completed) {
+      playUrl = downloadItem.localPath;
+      AppLogger.i('Playing local file: $playUrl');
+    } else {
+      // Different content (or nothing loaded yet) — fetch a fresh signed
+      // URL and start playback. getStreamUrl() always fetches fresh rather
+      // than reusing a cached URL, since signed URLs expire.
+      playUrl = await provider.getStreamUrl();
+    }
 
     if (!context.mounted) return;
 
-    if (url == null) {
+    if (playUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(provider.errorMessage ?? 'Could not load audio'),
@@ -251,7 +302,7 @@ class _ContentDetailView extends StatelessWidget {
       AppLogger.d("before playContent");
       await player.playContent(
         content: content,
-        streamUrl: url,
+        streamUrl: playUrl,
       );
 
       AppLogger.d("after playContent");
@@ -373,6 +424,107 @@ class _ErrorView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Download button ───────────────────────────────────────────────────────
+class _DownloadButton extends StatelessWidget {
+  const _DownloadButton({required this.content});
+
+  final Content content;
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<DownloadProvider>(
+      builder: (context, provider, _) {
+        final downloadItem = provider.statusFor(content.id);
+        final status = downloadItem?.status;
+
+        if (status == DownloadStatus.downloading) {
+          return GestureDetector(
+            onTap: () => provider.cancelDownload(content.id),
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.darkCard,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: AppColors.darkBorder),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    value: downloadItem?.progress ?? 0,
+                    strokeWidth: 3,
+                    color: AppColors.primaryLight,
+                  ),
+                  const Icon(Icons.close_rounded,
+                      size: 18, color: AppColors.textPrimaryDark),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final bool isDownloaded = provider.isDownloaded(content.id);
+
+        return GestureDetector(
+          onTap: () {
+            if (isDownloaded) {
+              _showDeleteConfirm(context, provider);
+            } else {
+              provider.startDownload(content);
+            }
+
+            AppLogger.d('downloading: ${downloadItem?.status}');
+          },
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: isDownloaded ? AppColors.accent.withValues(alpha: 0.1) : AppColors.darkCard,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: isDownloaded ? AppColors.accent : AppColors.darkBorder,
+              ),
+            ),
+            child: Icon(
+              isDownloaded ? Icons.download_done_rounded : Icons.download_rounded,
+              color: isDownloaded ? AppColors.accent : AppColors.textPrimaryDark,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDeleteConfirm(BuildContext context, DownloadProvider provider) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.darkSurface,
+        title: Text('Remove download?',
+            style: AppTextStyles.titleLarge(AppColors.textPrimaryDark)),
+        content: Text('This will remove the offline file from your device.',
+            style: AppTextStyles.bodyMedium(AppColors.textSecondaryDark)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel',
+                style: AppTextStyles.labelLarge(AppColors.textSecondaryDark)),
+          ),
+          TextButton(
+            onPressed: () {
+              provider.removeDownload(content.id);
+              Navigator.pop(ctx);
+            },
+            child: Text('Remove',
+                style: AppTextStyles.labelLarge(AppColors.error)),
+          ),
+        ],
       ),
     );
   }

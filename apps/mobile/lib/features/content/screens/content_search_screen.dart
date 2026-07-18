@@ -104,12 +104,20 @@ class _SearchScreenState extends State<SearchScreen> {
               onSubmitted: _onSubmitted,
               onClear: _onClear,
             ),
-            const SizedBox(height: AppSpacing.xs),
             Expanded(
               child: Consumer<SearchProvider>(
                 builder: (context, provider, _) {
                   return AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
+                    layoutBuilder: (currentChild, previousChildren) {
+                      return Stack(
+                        alignment: Alignment.topCenter,
+                        children: [
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      );
+                    },
                     child: _buildBody(
                       context,
                       provider: provider,
@@ -136,6 +144,7 @@ class _SearchScreenState extends State<SearchScreen> {
         required Color textSecondary,
         required Color surfaceColor,
       }) {
+
     if (provider.errorMessage != null) {
       return SearchErrorState(
         key: const ValueKey('error'),

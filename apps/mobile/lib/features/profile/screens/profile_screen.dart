@@ -1,5 +1,7 @@
 ﻿import 'dart:io';
+import 'package:Audioverse/core/general/logout_data_cleaner.dart';
 import 'package:Audioverse/features/auth/auth.dart';
+import 'package:Audioverse/features/settings/providers/downloads_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -25,6 +27,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.currentUser == null) return; // guest — nothing to load
+
       final profile = context.read<ProfileProvider>();
       if (profile.profile == null && !profile.isLoading) {
         profile.loadProfile();
@@ -37,14 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       await context.read<ProfileProvider>().updateAvatar(file);
-      // Success — _localAvatarPreview can stay; profile.avatarUrl now
-      // points at the same uploaded image anyway, so there's no visible
-      // difference, and clearing it would just cause an unnecessary
-      // network refetch of the image we already have on disk.
     } catch (_) {
-      // Upload failed — roll back the optimistic preview so the avatar
-      // reverts to whatever it was before this attempt, rather than
-      // leaving the UI showing an image that was never actually saved.
       if (mounted) {
         setState(() => _localAvatarPreview = null);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -102,39 +100,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
 
-    if (confirmed == true && context.mounted) {
-      await context.read<AuthProvider>().logout();
-    }
+    if (confirmed == false && !context.mounted) return;
+
+    final logoutDataCleaner = context.read<LogoutDataCleaner>();
+    final authProvider = context.read<AuthProvider>();
+    final profileProvider = context.read<ProfileProvider>();
+
+    await logoutDataCleaner.clearUserData();
+    await authProvider.logout();
+    profileProvider.reset();  
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final isGuest = user == null;
+
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       body: Consumer<ProfileProvider>(
         builder: (context, profileProvider, _) {
-          if (profileProvider.isLoading && profileProvider.profile == null) {
-            return const Center(child: AppLoader());
+          if (!isGuest) {
+            if (profileProvider.isLoading && profileProvider.profile == null) {
+              return const Center(child: AppLoader());
+            }
+
+            if (profileProvider.errorMessage != null && profileProvider.profile == null) {
+              return _ErrorState(
+                message: profileProvider.errorMessage!,
+                onRetry: profileProvider.loadProfile,
+              );
+            }
           }
 
-          if (profileProvider.errorMessage != null && profileProvider.profile == null) {
-            return _ErrorState(
-              message: profileProvider.errorMessage!,
-              onRetry: profileProvider.loadProfile,
-            );
-          }
-
-          final profile = profileProvider.profile;
-          final user = context.watch<AuthProvider>().currentUser;
+          final profile = isGuest ? null : profileProvider.profile;
 
           return RefreshIndicator(
-            onRefresh: profileProvider.loadProfile,
+            onRefresh: isGuest
+                ? () async {}
+                : profileProvider.loadProfile,
             color: AppColors.primaryLight,
             backgroundColor: AppColors.darkSurface,
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                _buildHero(context, profile),
+                isGuest ? _buildGuestHero(context) : _buildHero(context, profile),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
@@ -145,23 +155,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         ProfileStatsRow(stats: ProfileStats.stub()),
                         const SizedBox(height: AppSpacing.xl),
-                        Text(
-                          'ACCOUNT',
-                          style: AppTextStyles.labelSmall(AppColors.textSecondaryDark)
-                              .copyWith(letterSpacing: 1.2),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        _SettingsRow(
-                          icon: Icons.email_outlined,
-                          label: 'Email',
-                          value: user?.email ?? '—',
-                        ),
-                        _SettingsRow(
-                          icon: Icons.calendar_today_outlined,
-                          label: 'Member since',
-                          value: _formatJoinDate(user?.createdAt),
-                          showDivider: false,
-                        ),
+                        if (!isGuest) ...[
+                          Text(
+                            'ACCOUNT',
+                            style: AppTextStyles.labelSmall(AppColors.textSecondaryDark)
+                                .copyWith(letterSpacing: 1.2),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _SettingsRow(
+                            icon: Icons.email_outlined,
+                            label: 'Email',
+                            value: user.email,
+                          ),
+                          _SettingsRow(
+                            icon: Icons.calendar_today_outlined,
+                            label: 'Member since',
+                            value: _formatJoinDate(user.createdAt),
+                            showDivider: true,
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                        ],
+                        const _DownloadsCard(),
                       ],
                     ),
                   ),
@@ -174,20 +188,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ── Hero header ────────────────────────────────────────────────────────
+  // ── Shared app bar actions ────────────────────────────────────────────
   //
-  // SliverAppBar with a tall flexibleSpace gradient — avatar sits
-  // centered, overlapping the gradient/background seam slightly via
-  // negative-margin-style positioning, which is what gives this the
-  // "the avatar belongs to the header, not the page below it" feel
-  // that flat appbar-plus-card layouts don't achieve.
-  Widget _buildHero(BuildContext context, profile) {
+  // One source of truth for the icon row, used by both hero variants via
+  // SliverAppBar.actions — rendered by the AppBar itself (not layered
+  // inside flexibleSpace), so these icons stay pinned in the collapsed
+  // bar on scroll instead of disappearing with the rest of the hero.
+  List<Widget> _heroActions(BuildContext context, {required bool showLogout}) {
+    return [
+      if (showLogout)
+        IconButton(
+          onPressed: () => _confirmLogout(context),
+          icon: const Icon(Icons.logout),
+        ),
+      IconButton(
+        onPressed: () => context.push('/settings'),
+        icon: const Icon(Icons.settings),
+      ),
+    ];
+  }
+
+  // ── Guest hero ─────────────────────────────────────────────────────────
+  Widget _buildGuestHero(BuildContext context) {
     return SliverAppBar(
       pinned: true,
       expandedHeight: 280,
       backgroundColor: AppColors.darkBackground,
       surfaceTintColor: Colors.transparent,
       automaticallyImplyLeading: false,
+      actions: _heroActions(context, showLogout: false),
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
@@ -199,64 +228,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           child: SafeArea(
-            child: Stack(
-              children: [
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AvatarPicker(
-                        size: 104,
-                        currentAvatarUrl: profile?.avatarUrl,
-                        localPreviewFile: _localAvatarPreview,
-                        isUploading: context.watch<ProfileProvider>().isUploadingAvatar,
-                        onImageSelected: _onAvatarSelected,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                        child: EditableNameField(
-                          name: profile?.displayName ?? '',
-                          emptyPlaceholder: 'Add your name',
-                          centered: true,
-                          onSave: _onNameSave,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-                        child: EditableNameField(
-                          name: profile?.bio ?? '',
-                          emptyPlaceholder: 'Add a short bio',
-                          maxLines: 2,
-                          isSecondary: true,
-                          centered: true,
-                          onSave: _onBioSave,
-                        ),
-                      ),
-                    ],
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.darkCard,
+                      border: Border.all(color: AppColors.darkBorder, width: 1.5),
+                    ),
+                    child: const Icon(
+                      Icons.person_outline_rounded,
+                      size: 44,
+                      color: AppColors.textSecondaryDark,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'You\'re browsing as a guest',
+                    style: AppTextStyles.titleLarge(AppColors.textPrimaryDark),
+                  ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    child: Text(
+                      'Sign in to sync your library and listening progress across devices.',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodyMedium(AppColors.textSecondaryDark),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  AppButton(
+                    label: 'Sign In',
+                    width: 300,
+                    onPressed: () => context.push('/login'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => _confirmLogout(context),
-                        icon: const Icon(Icons.logout),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          context.push('/settings');
-                        },
-                        icon: const Icon(Icons.settings),
-                      ),
-                    ],
+  // ── Hero header (logged-in) ──────────────────────────────────────────
+  Widget _buildHero(BuildContext context, profile) {
+    return SliverAppBar(
+      pinned: true,
+      expandedHeight: 280,
+      backgroundColor: AppColors.darkBackground,
+      surfaceTintColor: Colors.transparent,
+      automaticallyImplyLeading: false,
+      actions: _heroActions(context, showLogout: profile != null),
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppColors.primaryDark, AppColors.darkBackground],
+              stops: [0.0, 0.85],
+            ),
+          ),
+          child: SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AvatarPicker(
+                    size: 104,
+                    currentAvatarUrl: profile?.avatarUrl,
+                    localPreviewFile: _localAvatarPreview,
+                    isUploading: context.watch<ProfileProvider>().isUploadingAvatar,
+                    onImageSelected: _onAvatarSelected,
                   ),
-                ),
-              ],
-            )
+                  const SizedBox(height: AppSpacing.md),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                    child: EditableNameField(
+                      name: profile?.displayName ?? '',
+                      emptyPlaceholder: 'Add your name',
+                      centered: true,
+                      onSave: _onNameSave,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                    child: EditableNameField(
+                      name: profile?.bio ?? '',
+                      emptyPlaceholder: 'Add a short bio',
+                      maxLines: 2,
+                      isSecondary: true,
+                      centered: true,
+                      onSave: _onBioSave,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -273,40 +346,95 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+// ── Downloads card ───────────────────────────────────────────────────────
+class _DownloadsCard extends StatelessWidget {
+  const _DownloadsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final count = context.watch<DownloadProvider>().downloads.length;
+
+    return GestureDetector(
+      onTap: () => context.push('/general'),
+      child: AppCard(
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: const Icon(
+                Icons.download_rounded,
+                color: AppColors.accent,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Downloads',
+                    style: AppTextStyles.bodyLarge(AppColors.textPrimaryDark)
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    count == 0 ? 'No offline audiobooks yet' : '$count saved for offline',
+                    style: AppTextStyles.labelSmall(AppColors.textSecondaryDark),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondaryDark,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ── Settings-row pattern ─────────────────────────────────────────────────
-//
-// Plain icon + label + value row with a hairline divider underneath —
-// the universal "account info" pattern (Settings apps, iOS Account
-// screens). No card border around the whole group; the divider alone
-// is enough structure, and it's quieter than wrapping everything in
-// another bordered box right under the stats row above it.
 class _SettingsRow extends StatelessWidget {
   const _SettingsRow({
     required this.icon,
     required this.label,
     required this.value,
+    this.onTap,
     this.showDivider = true,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final VoidCallback? onTap;
   final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: AppColors.textSecondaryDark),
-              const SizedBox(width: AppSpacing.md),
-              Text(label, style: AppTextStyles.bodyMedium(AppColors.textSecondaryDark)),
-              const Spacer(),
-              Text(value, style: AppTextStyles.bodyMedium(AppColors.textPrimaryDark)),
-            ],
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: AppColors.textSecondaryDark),
+                const SizedBox(width: AppSpacing.md),
+                Text(label, style: AppTextStyles.bodyMedium(AppColors.textSecondaryDark)),
+                const Spacer(),
+                Text(value, style: AppTextStyles.bodyMedium(AppColors.textPrimaryDark)),
+              ],
+            ),
           ),
         ),
         if (showDivider) const Divider(height: 1, color: AppColors.darkBorder),

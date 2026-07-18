@@ -84,7 +84,7 @@ class SearchBarWidget extends StatelessWidget {
                   ),
                   ValueListenableBuilder<TextEditingValue>(
                     valueListenable: controller,
-                    builder: (_, value, _) {
+                    builder: (_, value, __) {
                       if (value.text.isEmpty) return const SizedBox.shrink();
                       return IconButton(
                         icon: Icon(Icons.close_rounded,

@@ -36,11 +36,11 @@ export class AuthController {
   }
 
   @Throttle({ login: { ttl: 60000, limit: 5 } })
-  @UseGuards(LocalAuthGuard)
   @Post('google')
   @HttpCode(HttpStatus.OK)
-  async googleLogin(@Body('idToken') idToken: string) {
-    return this.authService.loginWithGoogle(idToken);
+  async googleLogin(@Body('token_id') token_id: string) {
+    console.log("Id token: ", token_id);
+    return this.authService.loginWithGoogle(token_id);
   }
 
   @SkipThrottle()

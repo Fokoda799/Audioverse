@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:Audioverse/core/theme/theme.dart';
 import 'package:Audioverse/features/content/models/models.dart';
-import 'content_result_tile.dart';
+import 'package:Audioverse/features/content/widgets/content_result_tile.dart';
 
 // ResultsList
 //

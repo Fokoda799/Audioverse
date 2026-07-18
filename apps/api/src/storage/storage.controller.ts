@@ -17,13 +17,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { audioMulterOptions, imageMulterOptions } from './multer.config';
+import { Logger as PinoLogger } from 'nestjs-pino';
 
 @Controller()
-@UseGuards(JwtAuthGuard) // Every endpoint in this controller requires a valid JWT
 export class StorageController {
   constructor(
     private readonly storageService: StorageService,
     private readonly prisma: PrismaService,
+    private readonly logger: PinoLogger,
   ) {}
 
   // ── POST /storage/upload/audio ─────────────────────────────────────────────
@@ -35,6 +36,7 @@ export class StorageController {
   @Post('storage/upload/audio')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AdminGuard)
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file', audioMulterOptions))
   async uploadAudio(@UploadedFile() file: Express.Multer.File) {
     const result = await this.storageService.uploadAudio(file);
@@ -55,6 +57,7 @@ export class StorageController {
   @Post('storage/upload/cover')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AdminGuard)
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file', imageMulterOptions))
   async uploadCover(@UploadedFile() file: Express.Multer.File) {
     const result = await this.storageService.uploadCover(file);
@@ -78,7 +81,7 @@ export class StorageController {
   async getStreamUrl(@Param('id', ParseUUIDPipe) contentId: string) {
     // Fetch the content record to get the stored Cloudinary publicId
     const content = await this.prisma.audioContent.findUnique({
-      where: { id: contentId }, 
+      where: { id: contentId },
       select: { id: true, title: true, audioUrl: true, isPublished: true },
     });
 
@@ -97,7 +100,7 @@ export class StorageController {
       3600,
     );
 
-    console.log("Stream url: ", streamUrl);
+    this.logger.log({ streamUrl }, 'Generated signed stream URL');
 
     return {
       contentId: content.id,

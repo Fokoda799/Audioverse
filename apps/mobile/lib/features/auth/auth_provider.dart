@@ -1,4 +1,6 @@
-﻿import 'package:Audioverse/core/auth/google.dart';
+﻿import 'dart:async';
+
+import 'package:Audioverse/core/auth/google.dart';
 import 'package:flutter/foundation.dart';
 
 
@@ -10,7 +12,10 @@ class AuthProvider extends ChangeNotifier {
   final AuthRepository _repository;
   final GoogleAuthService _googleAuth;
 
-  AuthProvider({required AuthRepository repository, required GoogleAuthService googleAuth})
+  AuthProvider({
+    required AuthRepository repository,
+    required GoogleAuthService googleAuth
+  })
       : _repository = repository,
         _googleAuth = googleAuth;
 
@@ -37,7 +42,9 @@ class AuthProvider extends ChangeNotifier {
     _setLoading();
     try {
       _currentUser = await _repository.login(email: email, password: password);
+      AppLogger.i('Login success → user: ${_currentUser?.id}');
       _isGuest = false;
+      notifyListeners();
       _clearError();
     } catch (e, st) {
       AppLogger.e('Login failed → $email', error: e, stackTrace: st);
@@ -53,7 +60,6 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
-    AppLogger.i('Register attempt → $email');
     _setLoading();
     try {
       _currentUser = await _repository.register(
@@ -62,7 +68,6 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       _isGuest = false;
-      AppLogger.i('Register success → user: ${_currentUser?.id}');
       _clearError();
     } catch (e, st) {
       AppLogger.e('Register failed → $email', error: e, stackTrace: st);
@@ -93,6 +98,7 @@ class AuthProvider extends ChangeNotifier {
     AppLogger.i('Logout → user: ${_currentUser?.id}');
     _setLoading();
     try {
+      await _googleAuth.signOut();
       await _repository.logout();
       _currentUser = null;
       _clearError();

@@ -1,5 +1,4 @@
 import 'package:Audioverse/core/theme/theme.dart';
-import 'package:Audioverse/core/utils/app_logger.dart';
 import 'package:Audioverse/core/widgets/app_button.dart';
 import 'package:Audioverse/core/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';

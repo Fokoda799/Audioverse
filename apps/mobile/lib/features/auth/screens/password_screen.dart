@@ -138,8 +138,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     _emailController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
-    for (final c in _codeControllers) c.dispose();
-    for (final f in _codeFocusNodes) f.dispose();
+    for (final c in _codeControllers) {
+      c.dispose();
+    }
+    for (final f in _codeFocusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -175,7 +179,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     } catch (e) {
       _showError('Invalid code. Please try again.');
       // Clear code boxes on wrong code
-      for (final c in _codeControllers) c.clear();
+      for (final c in _codeControllers) {
+        c.clear();
+      }
       _codeFocusNodes[0].requestFocus();
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -210,7 +216,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       await (widget.onSendCode?.call(_submittedEmail) ??
           Future.delayed(const Duration(seconds: 1)));
       _startResendCooldown();
-      for (final c in _codeControllers) c.clear();
+      for (final c in _codeControllers) {
+        c.clear();
+      }
       _codeFocusNodes[0].requestFocus();
     } finally {
       if (mounted) setState(() => _isLoading = false);

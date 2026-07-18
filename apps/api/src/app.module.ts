@@ -20,6 +20,14 @@ import { randomUUID } from 'crypto';
     LoggerModule.forRootAsync({
       useFactory: () => ({
         pinoHttp: {
+          // Respect runtime LOG_LEVEL (default to info)
+          level: process.env.LOG_LEVEL ?? 'info',
+          // Redact sensitive headers and large cookies from logs
+          redact: [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.headers.cookie',
+          ],
           genReqId: (req, res) => {
             const header = req.headers['x-correlation-id'];
             const incomingId = Array.isArray(header) ? header[0] : header;

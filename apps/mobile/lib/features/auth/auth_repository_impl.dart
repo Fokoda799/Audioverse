@@ -164,7 +164,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       AppLogger.d('Raw login response: ${response.data}');
 
-      final user = await User.fromJson(response.data);
+      final user = User.fromJson(response.data);
 
       await _tokenStorage.saveUser(user);
 
