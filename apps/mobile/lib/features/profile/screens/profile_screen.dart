@@ -1,4 +1,5 @@
 ﻿import 'dart:io';
+import 'package:Audioverse/core/audio/audio_player_service.dart';
 import 'package:Audioverse/core/general/logout_data_cleaner.dart';
 import 'package:Audioverse/features/auth/auth.dart';
 import 'package:Audioverse/features/settings/providers/downloads_provider.dart';
@@ -22,19 +23,21 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   File? _localAvatarPreview;
+  String? _lastLoadedUserId;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = context.read<AuthProvider>();
-      if (auth.currentUser == null) return; // guest — nothing to load
+  void _loadProfileIfNeeded(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    final currentUserId = auth.currentUser?.id;
 
-      final profile = context.read<ProfileProvider>();
-      if (profile.profile == null && !profile.isLoading) {
-        profile.loadProfile();
-      }
-    });
+    if (currentUserId == null) {
+      _lastLoadedUserId = null;
+      return;
+    }
+
+    if (currentUserId != _lastLoadedUserId) {
+      _lastLoadedUserId = currentUserId;
+      context.read<ProfileProvider>().loadProfile();
+    }
   }
 
   Future<void> _onAvatarSelected(File file) async {
@@ -105,16 +108,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final logoutDataCleaner = context.read<LogoutDataCleaner>();
     final authProvider = context.read<AuthProvider>();
     final profileProvider = context.read<ProfileProvider>();
+    final player = AudioPlayerService.instance;
 
     await logoutDataCleaner.clearUserData();
+    await player.stopAndClear();
     await authProvider.logout();
-    profileProvider.reset();  
+    profileProvider.reset();
   }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
     final isGuest = user == null;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadProfileIfNeeded(context);
+    });
 
     return Scaffold(
       backgroundColor: AppColors.darkBackground,

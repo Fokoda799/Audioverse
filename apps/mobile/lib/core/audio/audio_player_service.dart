@@ -193,11 +193,15 @@ class AudioPlayerService {
       // into a brand new track.
       await _player.setVolume(1.0);
 
-      final savedPositionSec = await _historyRepository?.getPositionSec(contentId: content.id);
-      if (savedPositionSec != null && savedPositionSec > 0) {
-        final resumePosition = Duration(seconds: savedPositionSec);
-        await _player.seek(resumePosition);
-        _resumeController.add(resumePosition);
+      try {
+        final savedPositionSec = await _historyRepository?.getPositionSec(contentId: content.id);
+        if (savedPositionSec != null && savedPositionSec > 0) {
+          final resumePosition = Duration(seconds: savedPositionSec);
+          await _player.seek(resumePosition);
+          _resumeController.add(resumePosition);
+        }
+      } catch (e) {
+        AppLogger.w('Could not fetch resume position for ${content.id}, starting from 0: $e');
       }
 
       _player.play();
@@ -246,7 +250,8 @@ class AudioPlayerService {
   // ── History sync ──────────────────────────────────────────────────────────
   void _startHistorySync(String contentId) {
     _historySyncTimer = Timer.periodic(_historySyncInterval, (_) {
-      if (_player.playing) {
+      final totalDuration = duration;
+      if (_player.playing && totalDuration != null && totalDuration.inSeconds > 0) {
         _historyRepository?.updatePosition(
             contentId: contentId,
             positionSec: _player.position.inSeconds,
@@ -258,7 +263,8 @@ class AudioPlayerService {
 
   void _syncPositionNow() {
     final content = _currentContent;
-    if (content != null) {
+    final totalDuration = duration;
+    if (content != null && totalDuration != null && totalDuration.inSeconds > 0) {
       _historyRepository?.updatePosition(
           contentId: content.id,
           positionSec: _player.position.inSeconds,
@@ -309,6 +315,8 @@ class AudioPlayerService {
   }
 
   MiniPlayerContent? get currentMiniContent {
+    if (_currentContent == null) return null;
+
     final tag = _player.sequenceState?.currentSource?.tag;
     if (tag is! MediaItem) return null;
 
@@ -328,7 +336,23 @@ class AudioPlayerService {
     await _player.dispose();
     _isInitialized = false;
   }
+
+  Future<void> stopAndClear() async {
+    await _player.stop();
+    _historySyncTimer?.cancel();
+    _sleepTimerTicker?.cancel();
+    await _resumeController.close();
+    await _sleepTimerController.close();
+    _currentContent = null;
+    // Bump themeVersion to force MiniPlayer's ValueListenableBuilder to
+    // rebuild — currentMiniContent is a plain getter, not itself a stream,
+    // so nothing re-checks it unless something explicitly triggers a
+    // rebuild. themeVersion is already the mechanism MiniPlayer listens to
+    // for exactly this kind of "re-evaluate my state" signal.
+    themeVersion.value++;
+  }
 }
+
 
 
 class MiniPlayerContent {

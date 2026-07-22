@@ -4,25 +4,6 @@ import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:Audioverse/core/audio/audio_player_service.dart';
 
-// MiniPlayer
-//
-// Persistent playback bar shown across every screen once something is
-// loaded into AudioPlayerService. Tinted with a two-color gradient
-// extracted from the current cover art (see _extractPalette in
-// audio_player_service.dart) — that's what themeVersion/primaryColor/
-// secondaryColor below are for.
-//
-// STATE SOURCE: reads AudioPlayerService.instance directly, not through
-// Provider/context.read() — consistent with the rest of the player
-// architecture, since it's a process-wide singleton, not scoped state.
-//
-// VISIBILITY: shows/hides itself based on whether anything is loaded —
-// the parent shell always includes <MiniPlayer/> and lets it decide.
-//
-// PLACEMENT: sits directly above the bottom nav bar — see
-// MAIN_SCAFFOLD_CHANGES.md for exactly where it's inserted.
-//
-// mini_player.dart
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});

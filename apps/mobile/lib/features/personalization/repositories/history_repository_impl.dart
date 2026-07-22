@@ -76,7 +76,25 @@ class HistoryRepositoryImpl implements HistoryRepository {
   Future<List<History>> getContinueListening() async {
     try {
       final token = await _tokenStorage.getAccessToken();
-      if (token == null || token.isEmpty) return <History>[];
+      if (token == null || token.isEmpty) {
+        final contents = _box.toMap();
+        if (contents.isEmpty) return [] as List<History>;
+
+        final List<History> history = [];
+        for (final content in contents.entries) {
+          final response = await _dio.get('/content/${content.key}');
+          final data = Content.fromJson(response.data as Map<String, dynamic>);
+          history.add(History(
+            content: data,
+            positionSec: content.value,
+            progressPercent: content.value / data.durationSec,
+            completed: content.value / data.durationSec == 1,
+            lastPlayedAt: DateTime.now()
+          ));
+        }
+
+        return history;
+      }
 
       final response = await _dio.get('/history/continue-listening');
 

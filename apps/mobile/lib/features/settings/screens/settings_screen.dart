@@ -28,6 +28,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
@@ -142,8 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: AppSpacing.lg),
 
-              // ── Logout ────────────────────────────────────────────────────
-              _DeleteAccountButton(),
+              if (auth.currentUser != null) _DeleteAccountButton(),
 
               const SizedBox(height: AppSpacing.xl),
             ],

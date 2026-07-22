@@ -13,20 +13,7 @@ import 'package:Audioverse/features/home/widgets/shimmer_box.dart';
 import 'package:Audioverse/features/content/providers/content_list_provider.dart';
 import 'package:Audioverse/features/content/providers/categories_provider.dart';
 import 'package:Audioverse/features/personalization/providers/favorites_provider.dart';
-// import 'package:Audioverse/features/content/models/models.dart';
 
-// HomeScreen
-//
-// Composes every Home widget into one scrollable surface:
-//   SliverAppBar → Continue Listening → Featured Carousel → Audiobooks → Category
-//   Chips → Content Grid
-//
-// All four pieces of state (HomeProvider, ContentListProvider,
-// CategoriesProvider) are loaded together on first open and refreshed
-// together on pull-to-refresh, since from the user's point of view
-// "refresh the home screen" means all of it, not just one section.
-//
-// home_screen.dart
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -206,10 +193,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildContinueListeningSection() {
     return Consumer<HistoryProvider>(
       builder: (context, history, _) {
-        // Per the brief: this section is "only visible if history exists" —
-        // while loading we still show the shimmer (so it doesn't pop in
-        // abruptly), but once loaded with zero items, the entire section
-        // including its header disappears rather than rendering empty.
         final showSection = history.isLoadingContinueListening || history.continueListening.isNotEmpty;
 
         if (!showSection) return const SliverToBoxAdapter(child: SizedBox.shrink());

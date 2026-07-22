@@ -1,4 +1,6 @@
-﻿import 'package:flutter/foundation.dart';
+﻿import 'package:Audioverse/core/audio/audio_player_service.dart';
+import 'package:Audioverse/core/general/logout_data_cleaner.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -109,15 +111,22 @@ class _LoginScreenState extends State<LoginScreen>
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final auth = context.read<AuthProvider>();
+    final player = AudioPlayerService.instance;
+    final logoutDataCleaner = context.read<LogoutDataCleaner>();
 
     await auth.login(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
 
-    if (auth.isLoggedIn && mounted) {
-      context.go('/home');
-    }
+    if (!mounted || !auth.isLoggedIn) return;
+
+    await player.stopAndClear();
+    await logoutDataCleaner.clearUserData();
+
+    if (!mounted) return;
+
+    context.go('/home');
   }
 
   @override
