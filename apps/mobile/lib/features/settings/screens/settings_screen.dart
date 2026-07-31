@@ -1,4 +1,5 @@
-﻿import 'package:Audioverse/core/widgets/app_dialog.dart';
+﻿import 'package:url_launcher/url_launcher.dart';
+import 'package:Audioverse/core/widgets/app_dialog.dart';
 import 'package:Audioverse/core/widgets/app_snack_bar.dart';
 import 'package:Audioverse/features/auth/auth.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         preferences.load();
       }
     });
+  }
+
+  Future<void> openTerms(String url) async {
+    final uri = Uri.parse(url);
+
+    final success = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!success) {
+      throw Exception('Could not launch $uri');
+    }
   }
 
   @override
@@ -119,24 +133,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _TapTile(
                     icon: Icons.description_outlined,
                     label: 'Terms of Service',
-                    onTap: () {
-                      /* TODO: launch URL */
+                    onTap: () async {
+                      await openTerms('https://audioverse.abdellahnaithadid.dev/terms');
                     },
                   ),
                   _Divider(),
                   _TapTile(
                     icon: Icons.privacy_tip_outlined,
                     label: 'Privacy Policy',
-                    onTap: () {
-                      /* TODO: launch URL */
+                    onTap: () async {
+                      await openTerms('https://audioverse.abdellahnaithadid.dev/privacy');
                     },
                   ),
                   _Divider(),
                   _TapTile(
                     icon: Icons.mail_outline_rounded,
                     label: 'Contact Support',
-                    onTap: () {
-                      /* TODO: launch mailto */
+                    onTap: () async {
+                      await openTerms('https://audioverse.abdellahnaithadid.dev/conntact');
                     },
                   ),
                 ],

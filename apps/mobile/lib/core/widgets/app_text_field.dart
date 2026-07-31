@@ -6,7 +6,7 @@ import 'package:Audioverse/core/theme/theme.dart';
 ///
 /// Customizable text field with:
 ///   • prefix icon
-///   • optional trailing action (password toggle, clear)
+///   • optional trailing action (password toggle, clear, or custom button)
 ///   • inline error display
 ///   • animated focus ring
 ///   • password obscure toggle built-in
@@ -27,6 +27,9 @@ class AppTextField extends StatefulWidget {
     this.textInputAction = TextInputAction.next,
     this.autofillHints,
     this.enabled = true,
+    this.actionIcon,
+    this.onActionPressed,
+    this.isLoading = false,
   });
 
   final TextEditingController controller;
@@ -42,6 +45,18 @@ class AppTextField extends StatefulWidget {
   final TextInputAction textInputAction;
   final Iterable<String>? autofillHints;
   final bool enabled;
+
+  /// Icon shown inside a trailing button, on the right side of the field.
+  /// Ignored if [isPassword] is true (password toggle takes priority).
+  final IconData? actionIcon;
+
+  /// Callback fired when the trailing action button is tapped.
+  /// If null, the button will not be shown even if [actionIcon] is set.
+  final VoidCallback? onActionPressed;
+
+  /// When true, shows a spinner in place of the action button/password
+  /// toggle-less suffix slot, regardless of whether [actionIcon] is set.
+  final bool isLoading;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -92,6 +107,69 @@ class _AppTextFieldState extends State<AppTextField>
     super.dispose();
   }
 
+  Widget? _buildSuffixIcon(Color iconColor) {
+    // Password toggle takes priority over everything else.
+    if (widget.isPassword) {
+      return GestureDetector(
+        onTap: () => setState(() => _obscureText = !_obscureText),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: Icon(
+            _obscureText
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
+            color: iconColor,
+            size: 20,
+          ),
+        ),
+      );
+    }
+
+    // Loading spinner takes priority over the action button, and shows
+    // regardless of whether actionIcon/onActionPressed are set — so you
+    // can flip a field into a loading state without also needing an icon.
+    if (widget.isLoading) {
+      return Padding(
+        padding: const EdgeInsets.only(right: AppSpacing.md),
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+        ),
+      );
+    }
+
+    if (widget.actionIcon != null && widget.onActionPressed != null) {
+      return Padding(
+        padding: const EdgeInsets.only(right: AppSpacing.sm),
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: IconButton(
+            onPressed: widget.onActionPressed,
+            icon: Icon(
+              widget.actionIcon,
+              color: iconColor,
+              size: 20,
+            ),
+            splashRadius: 20,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 36,
+              minHeight: 36,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -111,7 +189,7 @@ class _AppTextFieldState extends State<AppTextField>
             boxShadow: _isFocused
                 ? [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.15 * _focusAnim.value),
+                color: AppColors.primary.withValues(alpha:  0.15 * _focusAnim.value),
                 blurRadius: 12,
                 spreadRadius: 1,
               ),
@@ -160,22 +238,7 @@ class _AppTextFieldState extends State<AppTextField>
             minWidth: 52,
             minHeight: 48,
           ),
-          suffixIcon: widget.isPassword
-              ? GestureDetector(
-            onTap: () => setState(() => _obscureText = !_obscureText),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md),
-              child: Icon(
-                _obscureText
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-                color: iconColor,
-                size: 20,
-              ),
-            ),
-          )
-              : null,
+          suffixIcon: _buildSuffixIcon(iconColor),
           suffixIconConstraints: const BoxConstraints(
             minWidth: 52,
             minHeight: 48,

@@ -1,3 +1,4 @@
+import 'package:Audioverse/features/auth/screens/check_your_email_screen.dart';
 import 'package:Audioverse/features/content/content.dart';
 import 'package:Audioverse/features/content/providers/content_detail_provider.dart';
 import 'package:Audioverse/features/content/screens/content_search_screen.dart';
@@ -26,6 +27,7 @@ class AppRoutes {
   static const login          = '/login';
   static const register       = '/register';
   static const forgotPassword = '/forgot-password';
+  static const checkYourEmail = '/check-email';
   static const home           = '/home';
   static const search         = '/search';
   static const library        = '/library';
@@ -43,7 +45,7 @@ class AppRouter {
 
   late final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: AppRoutes.login,
+    initialLocation: AppRoutes.register,
 
     // refreshListenable tells go_router to re-run redirect
     // every time AuthProvider calls notifyListeners()
@@ -56,11 +58,12 @@ class AppRouter {
         AppRoutes.login,
         AppRoutes.register,
         AppRoutes.forgotPassword,
+        AppRoutes.checkYourEmail,
       ].contains(state.matchedLocation);
       final isAnonymous = !isLoggedIn && !isGuest;
 
       // Not logged in and trying to access a protected screen → login
-      if (isAnonymous && !isOnAuthScreen) return AppRoutes.login;
+      if (isAnonymous && !isOnAuthScreen) return AppRoutes.register;
 
       // Already logged in and on an auth screen → home
       // (prevents going back to login after successful auth)
@@ -102,6 +105,14 @@ class AppRouter {
           child: ForgotPasswordScreen(
             onBackToLogin: () => context.go(AppRoutes.login),
           ),
+        ),
+      ),
+
+      GoRoute(
+        path: AppRoutes.checkYourEmail,
+        pageBuilder: (context, state) => _fadePage(
+          state: state,
+          child: const EmailVerificationScreen(email: "placeholder"),
         ),
       ),
 

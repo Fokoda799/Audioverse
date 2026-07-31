@@ -18,7 +18,7 @@ Widget buildBackground(bool isDark) {
       Positioned.fill(
         child: Container(
           color: (isDark ? AppColors.darkBackground : AppColors.lightBackground)
-              .withValues(alpha: isDark ? 0.75 : 0.7),
+              .withValues(alpha: isDark ? 0.96 : 0.7),
         ),
       ),
       // Original decorative blobs

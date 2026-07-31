@@ -63,6 +63,7 @@ dependencies:
   flutter_native_splash: ^2.4.4
 
   flutter_cache_manager: any
+  url_launcher: ^6.3.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
